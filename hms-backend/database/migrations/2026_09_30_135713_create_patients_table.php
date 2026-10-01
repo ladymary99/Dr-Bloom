@@ -18,12 +18,13 @@ return new class extends Migration
         $table->string('last_name');
         $table->date('date_of_birth');
         $table->enum('gender', ['male', 'female', 'other']);
-        $table->string('phone', 20)->nullable();
+       $table->text('phone')->nullable();
+
         $table->string('email')->nullable();
         $table->text('address')->nullable();
         $table->string('blood_type', 5)->nullable();
         $table->text('allergies')->nullable();
-        $table->string('national_id')->nullable(); // will be encrypted in the model
+        $table->text('national_id')->nullable();
         $table->timestamps();
         $table->softDeletes();
     });
