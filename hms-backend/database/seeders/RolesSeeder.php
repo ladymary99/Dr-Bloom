@@ -15,6 +15,7 @@ class RolesSeeder extends Seeder
             'manage users', 'manage departments',
             'view patients', 'create patients', 'update patients', 'delete patients',
             'manage appointments',
+            'manage payments',
             'conduct visits', 'write prescriptions',
             'view audit logs',
         ];

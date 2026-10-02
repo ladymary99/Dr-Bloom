@@ -17,7 +17,19 @@ class AuthController extends Controller
             'email' => 'required|email',
             'password' => 'required',
         ]);
+                if (! $user->is_active) {
+            AuditLog::create([
+                'action' => 'login_blocked_deactivated',
+                'auditable_type' => User::class,
+                'auditable_id' => $user->id,
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+            ]);
 
+            throw ValidationException::withMessages([
+                'email' => ['This account has been deactivated. Contact your administrator.'],
+            ]);
+        }
         $user = User::where('email', $request->email)->first();
 
         if (! $user || ! Hash::check($request->password, $user->password)) {

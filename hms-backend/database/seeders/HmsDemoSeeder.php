@@ -90,5 +90,23 @@ class HmsDemoSeeder extends Seeder
                 'reason' => 'Routine checkup',
             ]);
         }
+
+        // 7. Invoices (only if none exist — safe to re-run)
+        if (\App\Models\Invoice::count() === 0) {
+            $deptIds = Department::pluck('id');
+            foreach (Patient::limit(30)->get() as $patient) {
+                $status = fake()->randomElement(['paid', 'paid', 'paid', 'pending']);
+                \App\Models\Invoice::create([
+                    'patient_id' => $patient->id,
+                    'department_id' => $deptIds->random(),
+                    'description' => fake()->randomElement(['Consultation fee', 'Laboratory tests', 'X-ray imaging', 'Pharmacy dispensing', 'Room charges', 'Physiotherapy session']),
+                    'amount' => fake()->randomFloat(2, 15, 600),
+                    'status' => $status,
+                    'payment_method' => $status === 'paid' ? fake()->randomElement(['cash', 'card', 'transfer']) : null,
+                    'paid_at' => $status === 'paid' ? now()->subDays(rand(0, 30)) : null,
+                    'created_by' => $admin->id,
+                ]);
+            }
+        }
     }
 }
