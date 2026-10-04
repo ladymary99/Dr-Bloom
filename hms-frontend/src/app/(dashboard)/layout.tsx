@@ -2,13 +2,21 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/store/auth";
 
 
 
-const navItems = [
+type NavItem = {
+  href: string;
+  label: string;
+  icon: string;
+  perm?: string;
+  role?: string;
+};
+
+const navItems: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: "📊", perm: "" },
   { href: "/patients", label: "Patients", icon: "👥", perm: "view patients" },
   { href: "/appointments", label: "Appointments", icon: "📅", perm: "manage appointments" },
@@ -16,16 +24,22 @@ const navItems = [
   { href: "/admin/users", label: "Users & Access", icon: "🛡️", perm: "manage users" },        // ⬅️
   { href: "/admin/audit-logs", label: "Audit Logs", icon: "📋", perm: "view audit logs" },     // ⬅️
    { href: "/payments", label: "Payments", icon: "💳", perm: "manage payments" }, 
+   { href: "/doctor/queue", label: "My Queue", icon: "🩺", perm: "conduct visits" },  
+  { href: "/settings", label: "Settings", icon: "⚙️", role: "admin" },
+  { href: "/profile", label: "My Profile", icon: "👤" },
+   { href: "/beds", label: "Wards & Beds", icon: "🛏️", perm: "" },
 ];
+
+const subscribeToNothing = () => () => {};
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, roles, token, clear, hasPermission } = useAuthStore();
-  const [mounted, setMounted] = useState(false);
+  const mounted = useSyncExternalStore(subscribeToNothing, () => true, () => false);
 
 
   // Wait for zustand persist to hydrate, then guard the route
-  useEffect(() => setMounted(true), []);
   useEffect(() => {
     if (mounted && !token) router.replace("/login");
   }, [mounted, token, router]);
@@ -48,7 +62,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     router.replace("/login");
   }
 
-  const visibleNav = navItems.filter((n) => !n.perm || hasPermission(n.perm));
+  const visibleNav = navItems.filter(
+    (item) => (!item.perm || hasPermission(item.perm)) && (!item.role || roles.includes(item.role))
+  );
 
   return (
     <div className="flex min-h-screen">
@@ -82,7 +98,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </nav>
 
         <div className="border-t border-slate-100 p-4">
-          <div className="flex items-center gap-3">
+          <div
+            role="link"
+            tabIndex={0}
+            aria-label={`Open profile for ${user?.name ?? "user"}`}
+            onClick={() => router.push("/profile")}
+            onKeyDown={(event) => {
+              if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) {
+                event.preventDefault();
+                router.push("/profile");
+              }
+            }}
+            className="flex cursor-pointer items-center gap-3 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+          >
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-200 text-sm font-medium text-slate-700">
               {user?.name?.charAt(0).toUpperCase()}
             </div>
@@ -91,7 +119,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <div className="text-xs capitalize text-slate-500">{roles.join(", ")}</div>
             </div>
             <button
-              onClick={logout}
+              onClick={(event) => {
+                event.stopPropagation();
+                logout();
+              }}
               title="Sign out"
               className="text-lg text-slate-400 transition hover:text-slate-700"
             >

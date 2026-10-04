@@ -99,6 +99,8 @@ class HmsDemoSeeder extends Seeder
                 \App\Models\Invoice::create([
                     'patient_id' => $patient->id,
                     'department_id' => $deptIds->random(),
+                    'doctor_id' => $doctorProfiles[array_rand($doctorProfiles)]->id,
+                    'source' => fake()->randomElement(['reception', 'reception', 'online']),
                     'description' => fake()->randomElement(['Consultation fee', 'Laboratory tests', 'X-ray imaging', 'Pharmacy dispensing', 'Room charges', 'Physiotherapy session']),
                     'amount' => fake()->randomFloat(2, 15, 600),
                     'status' => $status,
@@ -107,6 +109,60 @@ class HmsDemoSeeder extends Seeder
                     'created_by' => $admin->id,
                 ]);
             }
+        }
+
+        // 8. Inventory (only if empty)
+        if (\App\Models\InventoryItem::count() === 0) {
+            $deptIds = Department::pluck('id');
+            $items = [
+                ['Paracetamol 500mg', 'Medicine', 5, 'boxes', 20, 2.50, 'PharmaCo'],
+                ['Amoxicillin 250mg', 'Medicine', 40, 'boxes', 15, 4.00, 'PharmaCo'],
+                ['Surgical gloves', 'Supply', 8, 'boxes', 30, 6.50, 'MedSupply'],
+                ['Syringes 5ml', 'Supply', 200, 'pcs', 100, 0.20, 'MedSupply'],
+                ['BP monitor', 'Equipment', 3, 'pcs', 2, 45.00, 'EquipMed'],
+                ['Insulin vials', 'Medicine', 12, 'vials', 10, 9.80, 'PharmaCo'],
+                ['IV Fluid 500ml', 'Medicine', 4, 'bags', 25, 3.20, 'PharmaCo'],
+            ];
+            foreach ($items as $row) {
+                \App\Models\InventoryItem::create([
+                    'department_id' => $deptIds->random(),
+                    'item_name' => $row[0], 'category' => $row[1],
+                    'quantity' => $row[2], 'unit' => $row[3],
+                    'min_level' => $row[4], 'unit_price' => $row[5], 'supplier' => $row[6],
+                ]);
+            }
+        }
+
+        // 9. Wards, beds, one demo admission (only if empty)
+        if (\App\Models\Ward::count() === 0) {
+            $wards = [
+                ['name' => 'General Ward', 'code' => 'GW-A', 'dept' => 'GM'],
+                ['name' => 'ICU', 'code' => 'ICU-1', 'dept' => 'ER'],
+                ['name' => 'Emergency Ward', 'code' => 'ER-W', 'dept' => 'ER'],
+                ['name' => 'Pediatric Ward', 'code' => 'PED-W', 'dept' => 'PED'],
+            ];
+            $allBeds = [];
+            foreach ($wards as $wardData) {
+                $ward = \App\Models\Ward::create([
+                    'name' => $wardData['name'],
+                    'code' => $wardData['code'],
+                    'department_id' => Department::where('code', $wardData['dept'])->value('id'),
+                ]);
+                for ($i = 1; $i <= 5; $i++) {
+                    $allBeds[] = $ward->beds()->create(['bed_number' => (string) $i, 'status' => 'available']);
+                }
+            }
+
+            $firstBed = $allBeds[0];
+            \App\Models\Admission::create([
+                'patient_id' => Patient::first()->id,
+                'bed_id' => $firstBed->id,
+                'doctor_id' => $doctorProfiles[0]->id,
+                'admitted_at' => now()->subHours(6),
+                'diagnosis' => 'Post-surgery observation',
+                'status' => 'admitted',
+            ]);
+            $firstBed->update(['status' => 'occupied']);
         }
     }
 }

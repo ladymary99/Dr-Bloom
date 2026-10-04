@@ -17,19 +17,7 @@ class AuthController extends Controller
             'email' => 'required|email',
             'password' => 'required',
         ]);
-                if (! $user->is_active) {
-            AuditLog::create([
-                'action' => 'login_blocked_deactivated',
-                'auditable_type' => User::class,
-                'auditable_id' => $user->id,
-                'ip_address' => $request->ip(),
-                'user_agent' => $request->userAgent(),
-            ]);
 
-            throw ValidationException::withMessages([
-                'email' => ['This account has been deactivated. Contact your administrator.'],
-            ]);
-        }
         $user = User::where('email', $request->email)->first();
 
         if (! $user || ! Hash::check($request->password, $user->password)) {
@@ -46,7 +34,21 @@ class AuthController extends Controller
             ]);
         }
 
-        // One token per user — kills old sessions on new login (stolen-token protection)
+        if (! $user->is_active) {
+            AuditLog::create([
+                'action' => 'login_blocked_deactivated',
+                'auditable_type' => User::class,
+                'auditable_id' => $user->id,
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+            ]);
+
+            throw ValidationException::withMessages([
+                'email' => ['This account has been deactivated. Contact your administrator.'],
+            ]);
+        }
+
+        // One token per user — old tokens die on new login
         $user->tokens()->delete();
         $token = $user->createToken('api')->plainTextToken;
 
@@ -66,7 +68,31 @@ class AuthController extends Controller
             'permissions' => $user->getAllPermissions()->pluck('name'),
         ]);
     }
+        public function updatePassword(Request $request)
+    {
+        $data = $request->validate([
+            'current_password' => 'required|current_password',
+            'password' => 'required|string|min:8|confirmed',
+        ]);
 
+        $user = $request->user();
+        $user->update(['password' => Hash::make($data['password'])]);
+
+        // Sign out everywhere EXCEPT this device
+        $currentToken = $user->currentAccessToken();
+        $user->tokens()->where('id', '!=', $currentToken->id)->delete();
+
+        AuditLog::create([
+            'user_id' => $user->id,
+            'action' => 'password_changed',
+            'auditable_type' => User::class,
+            'auditable_id' => $user->id,
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+        ]);
+
+        return response()->json(['message' => 'Password updated. Other sessions were signed out.']);
+    }
     public function me(Request $request)
     {
         return response()->json([

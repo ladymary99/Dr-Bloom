@@ -13,7 +13,8 @@ class InvoiceController extends Controller
     public function index(Request $request)
     {
         $invoices = Invoice::with(
-                'patient:id,mrn,first_name,last_name',
+                  'patient:id,mrn,first_name,last_name',
+                'doctor.user:id,name',
                 'department:id,name,code',
                 'creator:id,name'
             )
@@ -36,6 +37,8 @@ class InvoiceController extends Controller
             'amount' => 'required|numeric|min:0.01|max:9999999',
             'status' => 'in:pending,paid',
             'payment_method' => 'nullable|string|max:20',
+             'doctor_id' => 'nullable|exists:staff_profiles,id',
+            'source' => 'in:online,reception',
         ]);
 
         $invoice = Invoice::create([

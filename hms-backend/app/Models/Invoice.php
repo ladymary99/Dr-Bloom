@@ -9,7 +9,7 @@ class Invoice extends Model
 {
     protected $fillable = [
         'invoice_number', 'patient_id', 'department_id', 'description',
-        'amount', 'status', 'payment_method', 'paid_at', 'created_by',
+        'amount', 'status', 'payment_method', 'paid_at', 'created_by', 'doctor_id', 'source'
     ];
 
     protected $casts = [
@@ -38,5 +38,9 @@ class Invoice extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+    public function doctor(): BelongsTo
+    {
+        return $this->belongsTo(StaffProfile::class, 'doctor_id');
     }
 }

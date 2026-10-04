@@ -5,7 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-
 class Department extends Model
 {
     protected $fillable = ['name', 'code', 'description', 'is_active'];
@@ -21,8 +20,9 @@ class Department extends Model
     {
         return $this->hasMany(Appointment::class);
     }
+
     public function invoices(): HasMany
-{
-    return $this->hasMany(Invoice::class);
-}
+    {
+        return $this->hasMany(Invoice::class);
+    }
 }
