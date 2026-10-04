@@ -164,5 +164,19 @@ class HmsDemoSeeder extends Seeder
             ]);
             $firstBed->update(['status' => 'occupied']);
         }
+
+        // 10. Announcements (only if empty)
+        if (\App\Models\Announcement::count() === 0) {
+            \App\Models\Announcement::create([
+                'title' => 'Welcome to Dr-Bloom HMS 🎉',
+                'body' => 'The hospital management system is live. Check your dashboard daily for updates.',
+                'created_by' => $admin->id,
+            ]);
+            \App\Models\Announcement::create([
+                'title' => 'Staff meeting Friday',
+                'body' => 'All-staff meeting this Friday at 14:00 in the main hall. Attendance required.',
+                'created_by' => $admin->id,
+            ]);
+        }
     }
 }

@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useSyncExternalStore } from "react";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/store/auth";
+import AnnouncementBanner from "@/components/AnnouncementBanner";
 
 
 
@@ -28,6 +29,8 @@ const navItems: NavItem[] = [
   { href: "/settings", label: "Settings", icon: "⚙️", role: "admin" },
   { href: "/profile", label: "My Profile", icon: "👤" },
    { href: "/beds", label: "Wards & Beds", icon: "🛏️", perm: "" },
+     { href: "/reports", label: "Reports", icon: "📈", perm: "manage payments" },
+     { href: "/announcements", label: "Announcements", icon: "📢", perm: "", role: "admin" },
 ];
 
 const subscribeToNothing = () => () => {};
@@ -133,7 +136,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-y-auto bg-slate-50 p-8">{children}</main>
+      <main className="flex-1 overflow-y-auto bg-slate-50 p-8">
+         <AnnouncementBanner />
+        {children}
+        
+      </main>
     </div>
   );
 }

@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\DepartmentController;
 use App\Http\Controllers\Api\LookupController;
 use App\Http\Controllers\Api\Admin\AuditLogController;
+use App\Http\Controllers\Api\Admin\ReportController;
 use App\Http\Controllers\Api\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Api\Admin\FinanceController;
 use App\Http\Controllers\Api\InvoiceController;
@@ -19,6 +20,7 @@ use App\Http\Controllers\Api\SettingController;
 use App\Http\Controllers\Api\AdmissionController;
 use App\Http\Controllers\Api\BedController;
 use App\Http\Controllers\Api\WardController;
+use App\Http\Controllers\Api\AnnouncementController;
 
    
 
@@ -61,6 +63,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/patients/{patient}/history', [VisitController::class, 'patientHistory'])->middleware('permission:view patients');
 
     Route::get('/admin/finance/summary', [FinanceController::class, 'summary'])->middleware('permission:manage payments');
+    Route::get('/admin/reports/collection', [ReportController::class, 'collection'])->middleware('permission:manage payments');
+    Route::get('/admin/reports/doctors', [ReportController::class, 'doctors'])->middleware('permission:manage payments');
+    Route::get('/admin/reports/export/{type}', [ReportController::class, 'export'])->middleware('permission:manage payments');
+    Route::get('/announcements', [AnnouncementController::class, 'index']);
+    Route::get('/admin/announcements', [AnnouncementController::class, 'adminIndex'])->middleware('role:admin');
+    Route::post('/admin/announcements', [AnnouncementController::class, 'store'])->middleware('role:admin');
+    Route::put('/admin/announcements/{announcement}', [AnnouncementController::class, 'update'])->middleware('role:admin');
+    Route::delete('/admin/announcements/{announcement}', [AnnouncementController::class, 'destroy'])->middleware('role:admin');
     Route::get('/settings', [SettingController::class, 'index']);
     Route::put('/settings', [SettingController::class, 'update'])->middleware('role:admin');
     Route::put('/me/password', [AuthController::class, 'updatePassword']);
