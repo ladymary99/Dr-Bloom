@@ -41,5 +41,7 @@ class RolesSeeder extends Seeder
                 'view patients', 'create patients', 'update patients',
                 'manage appointments',
             ]);
+
+        Role::firstOrCreate(['name' => 'patient']);
     }
 }

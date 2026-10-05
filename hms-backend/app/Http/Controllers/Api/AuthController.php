@@ -11,6 +11,58 @@ use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
+    public function registerPatient(Request $request)
+    {
+        $data = $request->validate([
+            'first_name' => 'required|string|max:100',
+            'last_name' => 'required|string|max:100',
+            'email' => 'required|email|max:255|unique:users,email',
+            'phone' => 'required|string|max:20',
+            'date_of_birth' => 'required|date',
+            'gender' => 'required|in:male,female,other',
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        $user = \Illuminate\Support\Facades\DB::transaction(function () use ($data) {
+            $user = User::create([
+                'name' => $data['first_name'] . ' ' . $data['last_name'],
+                'email' => $data['email'],
+                'password' => Hash::make($data['password']),
+            ]);
+            $user->assignRole('patient');
+
+            \App\Models\Patient::create([
+                'user_id' => $user->id,
+                'first_name' => $data['first_name'],
+                'last_name' => $data['last_name'],
+                'email' => $data['email'],
+                'phone' => $data['phone'],
+                'date_of_birth' => $data['date_of_birth'],
+                'gender' => $data['gender'],
+            ]);
+
+            return $user;
+        });
+
+        $token = $user->createToken('api')->plainTextToken;
+
+        AuditLog::create([
+            'user_id' => $user->id,
+            'action' => 'patient_registered',
+            'auditable_type' => User::class,
+            'auditable_id' => $user->id,
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+        ]);
+
+        return response()->json([
+            'token' => $token,
+            'user' => $user->load('patient'),
+            'roles' => $user->getRoleNames(),
+            'permissions' => [],
+        ], 201);
+    }
+
     public function login(Request $request)
     {
         $request->validate([

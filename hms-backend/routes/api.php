@@ -21,10 +21,13 @@ use App\Http\Controllers\Api\AdmissionController;
 use App\Http\Controllers\Api\BedController;
 use App\Http\Controllers\Api\WardController;
 use App\Http\Controllers\Api\AnnouncementController;
+use App\Http\Controllers\Api\PortalController;
 
    
 
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1'); // 5 tries/minute
+Route::post('/register/patient', [AuthController::class, 'registerPatient'])->middleware('throttle:5,1');
+Route::post('/patient/register', [AuthController::class, 'registerPatient'])->middleware('throttle:10,1');
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
@@ -94,4 +97,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/appointments', [AppointmentController::class, 'store'])->middleware('permission:manage appointments');
     Route::get('/appointments/{appointment}', [AppointmentController::class, 'show'])->middleware('permission:manage appointments');
     Route::put('/appointments/{appointment}', [AppointmentController::class, 'update'])->middleware('permission:manage appointments');
+});
+
+Route::middleware(['auth:sanctum', 'role:patient'])->prefix('portal')->group(function () {
+    Route::get('/me', [PortalController::class, 'me']);
+    Route::get('/appointments', [PortalController::class, 'appointments']);
+    Route::post('/appointments', [PortalController::class, 'book']);
+    Route::put('/appointments/{appointment}/cancel', [PortalController::class, 'cancel']);
+    Route::get('/records', [PortalController::class, 'records']);
+    Route::get('/invoices', [PortalController::class, 'invoices']);
 });

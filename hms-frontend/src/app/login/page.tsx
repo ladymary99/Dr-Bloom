@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/store/auth";
@@ -20,9 +21,10 @@ export default function LoginPage() {
     try {
       const { data } = await api.post("/login", { email, password });
       setAuth(data);
-      router.push("/dashboard");
-    } catch (err: any) {
-      setError(err.response?.data?.message ?? "Login failed. Check the server.");
+      router.push(data.roles?.includes("patient") ? "/portal" : "/dashboard");
+    } catch (requestError) {
+      const data = (requestError as { response?: { data?: { message?: string } } }).response?.data;
+      setError(data?.message ?? "Login failed. Check the server.");
     } finally {
       setLoading(false);
     }
@@ -85,6 +87,9 @@ export default function LoginPage() {
           <b>Demo accounts</b> — password: <code className="font-mono">password</code>
           <br />admin@hospital.test · sarah.doctor@hospital.test · nurse@hospital.test · reception@hospital.test
         </div>
+        <p className="mt-4 text-center text-sm text-slate-500">
+          New patient? <Link href="/register" className="font-medium text-blue-600 hover:underline">Create an account</Link>
+        </p>
       </div>
     </div>
   );

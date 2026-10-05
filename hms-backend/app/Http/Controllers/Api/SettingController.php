@@ -8,7 +8,7 @@ use Illuminate\Http\Request;
 
 class SettingController extends Controller
 {
-    private const KEYS = ['hospital_name', 'address', 'phone', 'email', 'working_hours', 'announcement'];
+    private const KEYS = ['hospital_name', 'address', 'phone', 'email', 'working_hours', 'announcement', 'consultation_fee'];
 
     public function index()
     {
@@ -21,6 +21,7 @@ class SettingController extends Controller
             'email'         => $rows['email'] ?? '',
             'working_hours' => $rows['working_hours'] ?? '',
             'announcement'  => $rows['announcement'] ?? '',
+            'consultation_fee' => $rows['consultation_fee'] ?? '0',
         ]);
     }
 
@@ -33,6 +34,7 @@ class SettingController extends Controller
             'email'         => 'nullable|email|max:150',
             'working_hours' => 'nullable|string|max:150',
             'announcement'  => 'nullable|string|max:500',
+            'consultation_fee' => 'nullable|numeric|min:0',
         ]);
 
         foreach ($data as $key => $value) {

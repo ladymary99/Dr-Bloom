@@ -11,6 +11,7 @@ const FIELDS: { key: string; label: string; multiline?: boolean; placeholder?: s
   { key: "email", label: "Email" },
   { key: "working_hours", label: "Working hours", placeholder: "Sat–Thu, 8:00 – 20:00" },
   { key: "announcement", label: "Announcement banner", multiline: true, placeholder: "Shown to all staff on the dashboard (optional)" },
+  { key: "consultation_fee", label: "Consultation fee (online bookings)", placeholder: "e.g. 10" },
 ];
 
 export default function SettingsPage() {

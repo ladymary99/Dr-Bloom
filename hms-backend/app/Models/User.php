@@ -25,6 +25,11 @@ class User extends Authenticatable
         return $this->hasOne(StaffProfile::class);
     }
 
+    public function patient(): HasOne
+    {
+        return $this->hasOne(Patient::class);
+    }
+
     protected function casts(): array
     {
         return [

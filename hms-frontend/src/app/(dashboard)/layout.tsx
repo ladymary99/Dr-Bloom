@@ -47,7 +47,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (mounted && !token) router.replace("/login");
   }, [mounted, token, router]);
 
-  if (!mounted || !token) {
+  useEffect(() => {
+    if (mounted && token && roles.includes("patient")) router.replace("/portal");
+  }, [mounted, token, roles, router]);
+
+  if (!mounted || !token || roles.includes("patient")) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50 text-slate-500">
         Loading…
