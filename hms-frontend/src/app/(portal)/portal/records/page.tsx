@@ -17,12 +17,23 @@ type VisitRecord = {
   } | null;
 };
 
+type LabTest = {
+  id: number;
+  test_name: string;
+  status: string;
+  result: string | null;
+  created_at: string;
+  doctor: { user: { name: string } } | null;
+};
+
 export default function RecordsPage() {
   const [visits, setVisits] = useState<VisitRecord[] | null>(null);
+  const [labTests, setLabTests] = useState<LabTest[]>([]);
   const [error, setError] = useState("");
 
   useEffect(() => {
     api.get("/portal/records").then((response) => setVisits(response.data)).catch(() => setError("Could not load medical records."));
+    api.get("/portal/lab-tests").then((response) => setLabTests(response.data)).catch(() => {});
   }, []);
 
   return (
@@ -62,6 +73,27 @@ export default function RecordsPage() {
             )}
           </article>
         ))}
+        {labTests.length > 0 && (
+          <section className="border-y border-slate-200 bg-white px-5 py-5 sm:border sm:px-6">
+            <h2 className="font-semibold text-slate-900">Lab results ({labTests.length})</h2>
+            <ul className="mt-3 divide-y divide-slate-100">
+              {labTests.map((test) => (
+                <li key={test.id} className="py-4 first:pt-1 last:pb-1">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-sm font-medium text-slate-900">{test.test_name}</span>
+                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${test.status === "completed" ? "bg-green-50 text-green-700" : test.status === "cancelled" ? "bg-red-50 text-red-600" : "bg-amber-50 text-amber-700"}`}>
+                      {test.status.replaceAll("_", " ")}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {new Date(test.created_at).toLocaleDateString()}{test.doctor?.user?.name ? ` · Dr. ${test.doctor.user.name}` : ""}
+                  </p>
+                  {test.result && <p className="mt-2 whitespace-pre-wrap border-l-4 border-green-500 bg-green-50 px-3 py-2 text-sm text-slate-800">{test.result}</p>}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
       </div>
     </div>
   );

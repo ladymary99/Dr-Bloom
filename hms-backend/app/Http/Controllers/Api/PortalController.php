@@ -137,4 +137,11 @@ class PortalController extends Controller
             ->orderByDesc('created_at')
             ->get();
     }
+        public function labTests(Request $request)
+    {
+        return $this->myPatient($request)->labTests()
+            ->with('doctor.user:id,name')
+            ->orderByDesc('created_at')
+            ->get();
+    }
 }

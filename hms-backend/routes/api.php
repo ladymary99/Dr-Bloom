@@ -22,6 +22,8 @@ use App\Http\Controllers\Api\BedController;
 use App\Http\Controllers\Api\WardController;
 use App\Http\Controllers\Api\AnnouncementController;
 use App\Http\Controllers\Api\PortalController;
+use App\Http\Controllers\Api\LabTestController;
+use App\Http\Controllers\Api\PharmacyController;
 
    
 
@@ -87,6 +89,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/admissions/{admission}/discharge', [AdmissionController::class, 'discharge'])->middleware('permission:view patients');
     Route::get('/lookups/doctors', [LookupController::class, 'doctors']);
     Route::get('/dashboard/stats', [DashboardController::class, 'stats']);
+    Route::get('/lab-tests', [LabTestController::class, 'index'])->middleware('permission:manage lab');
+    Route::post('/lab-tests', [LabTestController::class, 'store'])->middleware('permission:conduct visits');
+    Route::get('/lab-tests/{labTest}', [LabTestController::class, 'show'])->middleware('permission:manage lab');
+    Route::put('/lab-tests/{labTest}', [LabTestController::class, 'update'])->middleware('permission:manage lab');
+
+    Route::get('/pharmacy/prescriptions', [PharmacyController::class, 'prescriptions'])->middleware('permission:manage pharmacy');
+    Route::post('/pharmacy/prescriptions/{prescription}/dispense', [PharmacyController::class, 'dispense'])->middleware('permission:manage pharmacy');
+    Route::get('/pharmacy/stock', [PharmacyController::class, 'stock'])->middleware('permission:manage pharmacy');
+    Route::post('/pharmacy/sale', [PharmacyController::class, 'sale'])->middleware('permission:manage pharmacy');
+
     Route::get('/patients', [PatientController::class, 'index'])->middleware('permission:view patients');
     Route::post('/patients', [PatientController::class, 'store'])->middleware('permission:create patients');
     Route::get('/patients/{patient}', [PatientController::class, 'show'])->middleware('permission:view patients');
@@ -106,4 +118,5 @@ Route::middleware(['auth:sanctum', 'role:patient'])->prefix('portal')->group(fun
     Route::put('/appointments/{appointment}/cancel', [PortalController::class, 'cancel']);
     Route::get('/records', [PortalController::class, 'records']);
     Route::get('/invoices', [PortalController::class, 'invoices']);
+    Route::get('/lab-tests', [PortalController::class, 'labTests']);
 });

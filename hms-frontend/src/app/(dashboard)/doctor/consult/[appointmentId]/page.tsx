@@ -18,6 +18,7 @@ type HistoryVisit = {
 type Item = { medicine_name: string; dosage: string; frequency: string; duration_days: string; instructions: string };
 
 const inputCls = "w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100";
+const ageReferenceDate = new Date();
 
 export default function ConsultPage() {
   const { appointmentId } = useParams<{ appointmentId: string }>();
@@ -32,6 +33,9 @@ export default function ConsultPage() {
     diagnosis: "", notes: "", type: "opd",
   });
   const [visitId, setVisitId] = useState<string | null>(null);
+  const [testName, setTestName] = useState("");
+  const [orderedTests, setOrderedTests] = useState<string[]>([]);
+  const [orderingTest, setOrderingTest] = useState(false);
   const [items, setItems] = useState<Item[]>([
     { medicine_name: "", dosage: "", frequency: "", duration_days: "", instructions: "" },
   ]);
@@ -65,8 +69,9 @@ export default function ConsultPage() {
         type: form.type,
       });
       setVisitId(data.id);
-    } catch (e: any) {
-      setError(e.response?.data?.message ?? "Could not save visit.");
+    } catch (requestError) {
+      const message = (requestError as { response?: { data?: { message?: string } } }).response?.data?.message;
+      setError(message ?? "Could not save visit.");
     } finally {
       setSaving(false);
     }
@@ -86,10 +91,33 @@ export default function ConsultPage() {
         })),
       });
       setRxDone(true);
-    } catch (e: any) {
-      setError(e.response?.data?.message ?? "Could not save prescription.");
+    } catch (requestError) {
+      const message = (requestError as { response?: { data?: { message?: string } } }).response?.data?.message;
+      setError(message ?? "Could not save prescription.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function orderTest() {
+    const name = testName.trim();
+    if (!name || !visitId || !patient || orderingTest) return;
+
+    setOrderingTest(true);
+    setError("");
+    try {
+      await api.post("/lab-tests", {
+        patient_id: patient.id,
+        visit_id: visitId,
+        test_name: name,
+      });
+      setOrderedTests((tests) => [...tests, name]);
+      setTestName("");
+    } catch (requestError) {
+      const message = (requestError as { response?: { data?: { message?: string } } }).response?.data?.message;
+      setError(message ?? "Could not send the test to the laboratory.");
+    } finally {
+      setOrderingTest(false);
     }
   }
 
@@ -113,7 +141,7 @@ export default function ConsultPage() {
             </h1>
             <p className="text-sm text-slate-500">
               <span className="mr-2 text-blue-700">{patient.mrn}</span>
-              {Math.floor((Date.now() - new Date(patient.date_of_birth).getTime()) / 3.15576e10)}y · {patient.gender}
+              {Math.floor((ageReferenceDate.getTime() - new Date(patient.date_of_birth).getTime()) / 3.15576e10)}y · {patient.gender}
               {patient.blood_type && <> · <span className="rounded-full bg-blue-50 px-1.5 py-0.5 text-blue-700">{patient.blood_type}</span></>}
               {patient.allergies && <span className="ml-2 text-red-600">⚠ Allergies: {patient.allergies}</span>}
             </p>
@@ -224,6 +252,33 @@ export default function ConsultPage() {
                 className="mt-4 w-full rounded-full bg-blue-600 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60">
                 {saving ? "Saving…" : "Save prescription"}
               </button>
+            </div>
+          )}
+
+          {visitId && (
+            <div className="rounded-2xl border border-slate-200 bg-white p-6">
+              <h2 className="font-semibold text-slate-900">Lab tests</h2>
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                <input className={inputCls} placeholder="Test name (e.g. CBC, X-Ray Chest)" value={testName}
+                  onChange={(event) => setTestName(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      void orderTest();
+                    }
+                  }} />
+                <button type="button" onClick={orderTest} disabled={!testName.trim() || orderingTest}
+                  className="rounded-full bg-blue-700 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-60">
+                  {orderingTest ? "Sending…" : "Order test"}
+                </button>
+              </div>
+              {orderedTests.length > 0 && (
+                <ul className="mt-3 space-y-1">
+                  {orderedTests.map((test, index) => (
+                    <li key={`${test}-${index}`} className="text-sm text-slate-600">{test} · Sent to laboratory</li>
+                  ))}
+                </ul>
+              )}
             </div>
           )}
 

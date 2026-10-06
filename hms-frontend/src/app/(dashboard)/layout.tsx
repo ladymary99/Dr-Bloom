@@ -28,9 +28,11 @@ const navItems: NavItem[] = [
    { href: "/doctor/queue", label: "My Queue", icon: "🩺", perm: "conduct visits" },  
   { href: "/settings", label: "Settings", icon: "⚙️", role: "admin" },
   { href: "/profile", label: "My Profile", icon: "👤" },
-   { href: "/beds", label: "Wards & Beds", icon: "🛏️", perm: "" },
-     { href: "/reports", label: "Reports", icon: "📈", perm: "manage payments" },
-     { href: "/announcements", label: "Announcements", icon: "📢", perm: "", role: "admin" },
+  { href: "/beds", label: "Wards & Beds", icon: "🛏️", perm: "" },
+  { href: "/reports", label: "Reports", icon: "📈", perm: "manage payments" },
+  { href: "/announcements", label: "Announcements", icon: "📢", perm: "", role: "admin" },
+  { href: "/lab", label: "Laboratory", icon: "🧪", perm: "manage lab" },
+  { href: "/pharmacy", label: "Pharmacy", icon: "💊", perm: "manage pharmacy" },
 ];
 
 const subscribeToNothing = () => () => {};

@@ -16,6 +16,7 @@ class RolesSeeder extends Seeder
             'view patients', 'create patients', 'update patients', 'delete patients',
             'manage appointments',
             'manage payments',
+            'manage lab', 'manage pharmacy',
             'conduct visits', 'write prescriptions',
             'view audit logs',
         ];
@@ -43,5 +44,11 @@ class RolesSeeder extends Seeder
             ]);
 
         Role::firstOrCreate(['name' => 'patient']);
+
+        $labRole = Role::firstOrCreate(['name' => 'lab technician']);
+        $labRole->givePermissionTo(['manage lab', 'view patients']);
+
+        $pharmacistRole = Role::firstOrCreate(['name' => 'pharmacist']);
+        $pharmacistRole->givePermissionTo(['manage pharmacy', 'view patients']);
     }
 }

@@ -11,7 +11,18 @@ class Prescription extends Model
 {
     use HasUuids;
 
-    protected $fillable = ['visit_id', 'doctor_id', 'notes'];
+    protected $fillable = [
+        'visit_id',
+        'doctor_id',
+        'notes',
+        'status',
+        'dispensed_at',
+        'dispensed_by',
+    ];
+
+    protected $casts = [
+        'dispensed_at' => 'datetime',
+    ];
 
     public function visit(): BelongsTo
     {
@@ -21,6 +32,11 @@ class Prescription extends Model
     public function doctor(): BelongsTo
     {
         return $this->belongsTo(StaffProfile::class, 'doctor_id');
+    }
+
+    public function dispensedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'dispensed_by');
     }
 
     public function items(): HasMany

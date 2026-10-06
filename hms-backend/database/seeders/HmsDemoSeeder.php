@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\Appointment;
 use App\Models\Department;
 use App\Models\Patient;
+use App\Models\Prescription;
 use App\Models\StaffProfile;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -177,6 +178,65 @@ class HmsDemoSeeder extends Seeder
                 'body' => 'All-staff meeting this Friday at 14:00 in the main hall. Attendance required.',
                 'created_by' => $admin->id,
             ]);
+        }
+
+        // 11. Lab technician account + sample tests
+        $labUser = User::firstOrCreate(
+            ['email' => 'lab@hospital.test'],
+            ['name' => 'Lab Technician', 'password' => Hash::make('password')]
+        );
+        $labUser->assignRole('lab technician');
+
+        if (\App\Models\LabTest::count() === 0) {
+            $tests = ['Complete Blood Count (CBC)', 'Blood Glucose', 'Lipid Panel', 'X-Ray Chest', 'Urinalysis', 'Liver Function Test'];
+            $patients = Patient::limit(6)->get();
+            foreach ($patients as $i => $patient) {
+                $status = fake()->randomElement(['ordered', 'in_progress', 'completed']);
+                \App\Models\LabTest::create([
+                    'patient_id' => $patient->id,
+                    'doctor_id' => $doctorProfiles[$i % count($doctorProfiles)]->id,
+                    'test_name' => $tests[$i % count($tests)],
+                    'status' => $status,
+                    'result' => $status === 'completed' ? 'All values within normal reference range.' : null,
+                    'completed_at' => $status === 'completed' ? now()->subHours(rand(1, 20)) : null,
+                ]);
+            }
+        }
+
+        $pharmacist = User::firstOrCreate(
+            ['email' => 'pharmacist@hospital.test'],
+            ['name' => 'Pharmacist', 'password' => Hash::make('password')]
+        );
+        $pharmacist->assignRole('pharmacist');
+
+        if (Prescription::count() === 0) {
+            $visit = \App\Models\Visit::first();
+
+            if ($visit) {
+                $prescription = Prescription::create([
+                    'visit_id' => $visit->id,
+                    'doctor_id' => $doctorProfiles[0]->id,
+                    'notes' => 'Continue medication as prescribed for 5 days.',
+                    'status' => 'pending',
+                ]);
+
+                $prescription->items()->createMany([
+                    [
+                        'medicine_name' => 'Paracetamol 500mg',
+                        'dosage' => '500mg',
+                        'frequency' => '1x3',
+                        'duration_days' => 5,
+                        'instructions' => 'Take after meals.',
+                    ],
+                    [
+                        'medicine_name' => 'Amoxicillin 250mg',
+                        'dosage' => '250mg',
+                        'frequency' => '1x2',
+                        'duration_days' => 7,
+                        'instructions' => 'Complete the full course.',
+                    ],
+                ]);
+            }
         }
     }
 }
