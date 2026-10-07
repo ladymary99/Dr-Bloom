@@ -24,7 +24,7 @@ use App\Http\Controllers\Api\AnnouncementController;
 use App\Http\Controllers\Api\PortalController;
 use App\Http\Controllers\Api\LabTestController;
 use App\Http\Controllers\Api\PharmacyController;
-
+use App\Http\Controllers\Api\PublicController;
    
 
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1'); // 5 tries/minute
@@ -34,6 +34,8 @@ Route::post('/patient/register', [AuthController::class, 'registerPatient'])->mi
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
+    Route::get('/public/info', [PublicController::class, 'info']);
+Route::get('/public/doctors', [PublicController::class, 'doctors']);
 
      Route::get('/admin/audit-logs', [AuditLogController::class, 'index'])->middleware('permission:view audit logs');
 
