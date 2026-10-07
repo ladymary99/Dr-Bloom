@@ -11,11 +11,20 @@ const links = [
   { href: "/contact", label: "Contact" },
 ];
 
+const footerLinks = [
+  { href: "/about", label: "Why Dr-Bloom" },
+  { href: "/contact", label: "Privacy Policy" },
+  { href: "/services", label: "Our Services" },
+  { href: "/doctors", label: "Our Doctors" },
+  { href: "/about", label: "About Us" },
+  { href: "/contact", label: "Terms and Conditions" },
+];
+
 export default function SiteLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   return (
-    <div className="min-h-screen bg-[var(--app-bg)] text-[var(--ink)]">
+    <div className="min-h-screen text-[var(--ink)]">
       {/* Navbar */}
       <header className="sticky top-0 z-50 border-b border-[var(--border)] bg-white/90 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
@@ -28,7 +37,7 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
               <Link key={l.href} href={l.href}
                 className={`rounded-full px-4 py-2 text-sm font-medium transition ${
                   pathname === l.href
-                    ? "text-[var(--font-heading)]"
+                    ? "text-[var(--primary)]"
                     : "text-[var(--muted)] hover:text-[var(--ink)]"
                 }`}>
                 {l.label}
@@ -61,51 +70,65 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
 
       {children}
 
-      {/* Footer */}
-      <footer className="border-t border-[var(--border)] bg-white">
-        <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 md:grid-cols-4">
-          <div>
-            <div className="flex items-center gap-2.5">
-              <div className="font-heading flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--primary)] text-xs font-bold text-white">
-                D
-              </div>
-              <span className="font-heading font-semibold">Dr-Bloom Hospital</span>
-            </div>
-            <p className="mt-3 text-sm leading-relaxed text-[var(--muted)]">
-              Modern, compassionate healthcare for your whole family — from emergency care to online appointments.
-            </p>
-          </div>
-          <div>
-            <div className="font-heading text-sm font-semibold text-[var(--ink)]">Quick links</div>
-            <ul className="mt-3 space-y-2 text-sm text-[var(--muted)]">
-              {links.map((l) => (
-                <li key={l.href}>
-                  <Link href={l.href} className="transition hover:text-[var(--primary)]">{l.label}</Link>
+           {/* Footer — big rounded gradient panel like the image */}
+      <footer className="px-4 pb-6 pt-4">
+        <div className="mx-auto flex min-h-[620px] max-w-6xl flex-col justify-between overflow-hidden rounded-3xl bg-gradient-to-br from-[#ccd6f1] via-[#b2c2ea] to-[#98abdf]">
+          <div className="grid gap-14 p-10 py-16 md:grid-cols-2 md:p-14 md:py-20">
+            {/* left: link column */}
+            <ul className="space-y-4">
+              {footerLinks.map((l) => (
+                <li key={l.label}>
+                  <Link href={l.href} className="text-sm font-medium text-white/90 transition hover:text-white">
+                    {l.label}
+                  </Link>
                 </li>
               ))}
             </ul>
+
+            {/* right: heading + avatars */}
+            <div>
+              <h2 className="font-heading max-w-sm text-3xl font-semibold leading-tight text-white sm:text-4xl">
+                Complete care for every stage of your life
+              </h2>
+              {/* overlapping doctor avatars */}
+              <div className="mt-6 flex -space-x-3">
+                {["SA", "KN", "MA"].map((n) => (
+                  <div
+                    key={n}
+                    className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-white/80 bg-[var(--primary)] text-xs font-bold text-white shadow-md"
+                  >
+                    {n}
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
-          <div>
-            <div className="font-heading text-sm font-semibold text-[var(--ink)]">Patient portal</div>
-            <ul className="mt-3 space-y-2 text-sm text-[var(--muted)]">
-              <li><Link href="/register" className="transition hover:text-[var(--primary)]">Create account</Link></li>
-              <li><Link href="/login" className="transition hover:text-[var(--primary)]">Book appointment</Link></li>
-              <li><Link href="/login" className="transition hover:text-[var(--primary)]">My records</Link></li>
-            </ul>
-          </div>
-          <div>
-            <div className="font-heading text-sm font-semibold text-[var(--ink)]">Contact</div>
-            <ul className="mt-3 space-y-2 text-sm text-[var(--muted)]">
-              <li>📍 Kabul, Afghanistan</li>
-              <li>📞 +93 700 000 000</li>
-              <li>✉️ info@drbloom.test</li>
-              <li>🕐 Open 24/7 for emergencies</li>
+
+          {/* bottom row: logo + contact */}
+          <div className="flex flex-col gap-8 p-10 pt-0 md:flex-row md:items-end md:justify-between md:p-14 md:pt-0">
+            <span className="font-heading text-4xl font-bold text-white sm:text-5xl">Dr'Bloom</span>
+
+            <ul className="space-y-2.5 text-sm text-white/90">
+              <li className="flex items-center gap-3">
+                <svg viewBox="0 0 24 24" className="h-4 w-4 text-white/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 2 .7 2.9a2 2 0 0 1-.5 2.1L8 10a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.5c.9.3 1.9.6 2.9.7a2 2 0 0 1 1.7 2z" />
+                </svg>
+                +93 700 000 000
+              </li>
+              <li className="flex items-center gap-3">
+                <svg viewBox="0 0 24 24" className="h-4 w-4 text-white/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/>
+                </svg>
+                info@drbloom.test
+              </li>
+              <li className="text-white/70">Dr-Bloom Hospital, Kabul, Afghanistan</li>
             </ul>
           </div>
         </div>
-        <div className="border-t border-[var(--border)] py-5 text-center text-xs text-[var(--muted)]">
+
+        <p className="mt-5 text-center text-xs text-[var(--muted)]">
           © {new Date().getFullYear()} Dr-Bloom Hospital. All rights reserved.
-        </div>
+        </p>
       </footer>
     </div>
   );
