@@ -1,5 +1,7 @@
 "use client";
 
+/* eslint-disable react-hooks/set-state-in-effect */
+
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 
@@ -128,7 +130,7 @@ export default function BedsPage() {
                     </div>
                   </button>
                 ))}
-                {w.beds.length === 0 && <div className="col-span-full py-4 text-center text-sm text-slate-400">No beds yet — click "+ Bed".</div>}
+                {w.beds.length === 0 && <div className="col-span-full py-4 text-center text-sm text-slate-400">No beds yet — click &quot;+ Bed&quot;.</div>}
               </div>
             </div>
           );
@@ -266,8 +268,9 @@ function AdmitModal({ bed, onClose, onDone }: { bed: BedInfo; onClose: () => voi
         notes: notes || null,
       });
       onDone();
-    } catch (e: any) {
-      setError(e.response?.data?.message ?? "Could not admit.");
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { message?: string } } };
+      setError(err.response?.data?.message ?? "Could not admit.");
     } finally {
       setSaving(false);
     }
@@ -365,8 +368,9 @@ function WardModal({ onClose, onDone }: { onClose: () => void; onDone: () => voi
         department_id: form.department_id ? Number(form.department_id) : null,
       });
       onDone();
-    } catch (e: any) {
-      setError(e.response?.data?.message ?? "Could not create ward.");
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { message?: string } } };
+      setError(err.response?.data?.message ?? "Could not create ward.");
     } finally {
       setSaving(false);
     }
@@ -417,8 +421,9 @@ function AddBedModal({ ward, onClose, onDone }: { ward: WardInfo; onClose: () =>
     try {
       await api.post(`/wards/${ward.id}/beds`, { bed_number: bedNumber });
       onDone();
-    } catch (e: any) {
-      setError(e.response?.data?.message ?? "Could not add bed.");
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { message?: string } } };
+      setError(err.response?.data?.message ?? "Could not add bed.");
     } finally {
       setSaving(false);
     }

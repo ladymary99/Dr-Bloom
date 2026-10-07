@@ -7,7 +7,7 @@
   --muted: #6684b8;
   --border: #e2e8f0;
   --app-bg: #DBDBE3;
-  --font-heading: "Sora", ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-sora), ui-sans-serif, system-ui, sans-serif;
 }
 
 body {

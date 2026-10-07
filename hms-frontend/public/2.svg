@@ -1,42 +1,7 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
-<svg width="800px" height="800px" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-<defs>
-<style>.cls-1{fill:#669df6;}.cls-2{fill:#4285f4;}.cls-3{fill:#aecbfa;}</style>
-</defs>
-<title>Icon_24px_AdvancedSolutionsLab_Color</title>
-<g data-name="Product Icons">
-<path class="cls-1" d="M12,12.29,3.75,7.35,12,2.58l8.24,4.67ZM5.27,7.36l6.72,4,6.72-4.11L12,3.47Z"/>
-<path class="cls-1" d="M12,21.44,3.72,15.89,12,11.3l8.15,4.64Zm-6.8-5.5L12,20.5,18.7,16,12,12.18Z"/>
-<rect class="cls-2" x="7.81" y="6.35" width="0.77" height="15.52" transform="translate(-5.78 5.7) rotate(-28.8)"/>
-<rect class="cls-2" x="7.99" y="13.84" width="15.4" height="0.77" transform="translate(-4.27 21.3) rotate(-61.7)"/>
-<rect class="cls-2" x="0.87" y="9.1" width="14.76" height="0.77" transform="translate(-4.09 11.89) rotate(-60)"/>
-<rect class="cls-2" x="15.36" y="2.04" width="0.77" height="14.95" transform="translate(-2.65 9.05) rotate(-29.69)"/>
-<rect class="cls-2" x="11.64" y="2.96" width="0.77" height="17.94"/>
-<rect class="cls-2" x="4.06" y="7.43" width="0.77" height="8.66"/>
-<rect class="cls-2" x="19.03" y="7.34" width="0.77" height="8.66"/>
-<circle class="cls-3" cx="12.03" cy="3.07" r="1.07"/>
-<circle class="cls-3" cx="19.42" cy="7.34" r="1.07"/>
-<circle class="cls-3" cx="4.58" cy="7.34" r="1.07"/>
-<circle class="cls-3" cx="12.03" cy="11.93" r="1.68"/>
-<circle class="cls-3" cx="19.42" cy="15.94" r="1.07"/>
-<circle class="cls-3" cx="4.58" cy="15.94" r="1.07"/>
-<circle class="cls-3" cx="12.03" cy="20.93" r="1.07"/>
-<path class="cls-3" d="M12,12.29,3.75,7.35,12,2.58l8.24,4.67ZM5.27,7.36l6.72,4,6.72-4.11L12,3.47Z"/>
-<path class="cls-3" d="M12,21.44,3.72,15.89,12,11.3l8.15,4.64Zm-6.8-5.5L12,20.5,18.7,16,12,12.18Z"/>
-<rect class="cls-3" x="7.81" y="6.35" width="0.77" height="15.52" transform="translate(-5.78 5.7) rotate(-28.8)"/>
-<rect class="cls-3" x="7.99" y="13.84" width="15.4" height="0.77" transform="translate(-4.27 21.3) rotate(-61.7)"/>
-<rect class="cls-3" x="0.87" y="9.1" width="14.76" height="0.77" transform="translate(-4.09 11.89) rotate(-60)"/>
-<rect class="cls-3" x="15.36" y="2.04" width="0.77" height="14.95" transform="translate(-2.65 9.05) rotate(-29.69)"/>
-<rect class="cls-3" x="11.64" y="2.96" width="0.77" height="17.94"/>
-<rect class="cls-3" x="4.06" y="7.43" width="0.77" height="8.66"/>
-<rect class="cls-3" x="19.03" y="7.34" width="0.77" height="8.66"/>
-<circle class="cls-1" cx="12.03" cy="3.07" r="1.07"/>
-<circle class="cls-1" cx="19.42" cy="7.34" r="1.07"/>
-<circle class="cls-1" cx="4.58" cy="7.34" r="1.07"/>
-<circle class="cls-1" cx="12.03" cy="11.93" r="1.68"/>
-<circle class="cls-1" cx="19.42" cy="15.94" r="1.07"/>
-<circle class="cls-1" cx="4.58" cy="15.94" r="1.07"/>
-<circle class="cls-1" cx="12.03" cy="20.93" r="1.07"/>
-</g>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<!-- Uploaded to: SVG Repo, www.svgrepo.com, Transformed by: SVG Repo Mixer Tools -->
+<svg width="800px" height="800px" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="#000000">
+<g id="SVGRepo_bgCarrier" stroke-width="0"/>
+<g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"/>
+<g id="SVGRepo_iconCarrier"> <defs> <style>.cls-1{fill:#6684b8;}.cls-2{fill:#6684b8;}.cls-3{fill:#aecbfa;}.cls-4{fill:none;}</style> </defs> <title>Icon_24px_CloudAuditLogs_Color</title> <g data-name="Product Icons"> <g data-name="colored-32/cloud-audit-logs"> <g> <path id="Fill-3" class="cls-1" d="M12.77,12.72a1.07,1.07,0,0,1-1.52,0L9.76,11.23l.76-.76L12,11.93l4.2-4.2.81.79Z"/> <path id="Fill-10" class="cls-2" d="M16,11.59a.91.91,0,0,0-.81.81,3.21,3.21,0,0,1-2.86,2.76,3.25,3.25,0,0,1-1.84-.36,3.19,3.19,0,0,1,1.2-6,3.07,3.07,0,0,1,1.21.13.9.9,0,0,0,1-.28h0a.91.91,0,0,0-.4-1.45A5,5,0,0,0,7,12.49,5,5,0,0,0,12.48,17,5,5,0,0,0,17,12.63a.91.91,0,0,0-1-1Z"/> <path id="Fill-16" class="cls-3" d="M12,18a2,2,0,1,1-2,2,2,2,0,0,1,2-2"/> <path id="Fill-16-2" data-name="Fill-16" class="cls-3" d="M12,2a2,2,0,1,1-2,2,2,2,0,0,1,2-2"/> <rect id="Rectangle" class="cls-4" width="24" height="24"/> </g> </g> <path class="cls-1" d="M18,20a1,1,0,0,1-.71-1.7L20,15.59V8.41L17.31,5.7a1,1,0,0,1,0-1.41,1,1,0,0,1,1.42,0l3,3A1,1,0,0,1,22,8v8a1,1,0,0,1-.29.7l-3,3A1,1,0,0,1,18,20Z"/> <path class="cls-2" d="M6,20a1,1,0,0,1-.71-.3l-3-3A1,1,0,0,1,2,16V8a1,1,0,0,1,.29-.71l3-3a1,1,0,0,1,1.42,0,1,1,0,0,1,0,1.41L4,8.41v7.18L6.69,18.3a1,1,0,0,1,0,1.42A1,1,0,0,1,6,20Z"/> </g> </g>
 </svg>

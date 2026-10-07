@@ -30,7 +30,7 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
           <Link href="/" className="flex items-center gap-2.5">
            
-            <span className="font-heading text-lg font-semibold">Dr'Bloom</span>
+            <span className="font-heading text-lg font-semibold">Dr&apos;Bloom</span>
           </Link>
           <nav className="hidden items-center gap-1 md:flex">
             {links.map((l) => (
@@ -106,7 +106,7 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
 
           {/* bottom row: logo + contact */}
           <div className="flex flex-col gap-8 p-10 pt-0 md:flex-row md:items-end md:justify-between md:p-14 md:pt-0">
-            <span className="font-heading text-4xl font-bold text-white sm:text-5xl">Dr'Bloom</span>
+            <span className="font-heading text-4xl font-bold text-white sm:text-5xl">Dr&apos;Bloom</span>
 
             <ul className="space-y-2.5 text-sm text-white/90">
               <li className="flex items-center gap-3">

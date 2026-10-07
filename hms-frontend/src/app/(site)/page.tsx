@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 
 type Info = { hospital_name: string; doctors: number; departments: number };
-type Doctor = { name: string; specialization: string | null; department: string | null };
 
 /* ---------- patient journey panel — dark, glow, morphing center card ---------- */
 const floatPills = [
@@ -184,10 +184,10 @@ function StatsStrip({ info }: { info: Info | null }) {
   }, []);
 
   const stats = [
-    { icon: <img src="/1.svg" alt="" className="h-15 w-15" />, value: 24, suffix: "/7", label: "Emergency & Critical Care" },
-    { icon: <img src="/4.svg" alt="" className="h-15 w-15" />, value: 100, suffix: "K+", label: "Patients Served" },
-    { icon: <img src="/3.svg" alt="" className="h-15 w-15" />, value: info?.doctors ?? 50, suffix: "+", label: "Medical Specialists" },
-    { icon: <img src="/2.svg" alt="" className="h-15 w-15" />, value: info?.departments ?? 12, suffix: "+", label: "Specialized Departments" },
+    { icon: <Image src="/1.svg" alt="" width={60} height={60} className="h-15 w-15" />, value: 24, suffix: "/7", label: "Emergency & Critical Care" },
+    { icon: <Image src="/4.svg" alt="" width={60} height={60} className="h-15 w-15" />, value: 100, suffix: "K+", label: "Patients Served" },
+    { icon: <Image src="/3.svg" alt="" width={60} height={60} className="h-15 w-15" />, value: info?.doctors ?? 50, suffix: "+", label: "Medical Specialists" },
+    { icon: <Image src="/2.svg" alt="" width={60} height={60} className="h-15 w-15" />, value: info?.departments ?? 12, suffix: "+", label: "Specialized Departments" },
   ];
 
   return (
@@ -457,15 +457,16 @@ export default function HomePage() {
     <div>
       {/* Hero — clean design background + real HTML texts */}
       <section className="relative min-h-screen overflow-hidden">
-        <img
+        <Image
           src="/hero4.webp"
           alt=""
+          fill
           className="absolute inset-0 h-full w-full select-none object-cover"
         />
 
         <div className="relative z-10 mx-auto max-w-6xl px-6 pt-16 sm:px-12 sm:pt-24 lg:pt-32">
           <h1 className="font-heading max-w-2xl text-5xl font-bold leading-[1.05] tracking-tight text-[var(--primary)] sm:text-6xl lg:text-7xl">
-            Advanced healthcare.<br />Powered by technology.
+            Advanced healthcare.
           </h1>
 
           <p className="mt-8 max-w-lg text-sm leading-relaxed text-[var(--muted)]">

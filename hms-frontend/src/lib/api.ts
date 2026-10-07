@@ -21,6 +21,7 @@ api.interceptors.response.use(
   (err) => {
     if (err.response?.status === 401 && useAuthStore.getState().token) {
       useAuthStore.getState().clear();
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
       window.location.href = "/login";
     }
     return Promise.reject(err);

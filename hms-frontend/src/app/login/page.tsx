@@ -6,6 +6,44 @@ import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/store/auth";
 
+/* ---------- split-screen auth shell — like the image ---------- */
+function AuthShell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex min-h-screen gap-4 bg-[var(--primary-tint)]/20 p-4">
+      {/* left — white panel with the form */}
+      <div className="flex flex-1 items-center justify-center rounded-3xl bg-white px-6 py-12">
+        <div className="w-full max-w-sm">{children}</div>
+      </div>
+
+      {/* right — gradient panel with the layered shield emblem */}
+      <div className="relative hidden flex-1 items-center justify-center overflow-hidden rounded-3xl bg-gradient-to-b from-[var(--primary)] via-[var(--muted)] to-[var(--primary-tint)] lg:flex">
+        <div className="absolute flex items-center justify-center">
+          {/* nested translucent shields, like the image */}
+          <div className="absolute h-[560px] w-[560px] rounded-[30%] border border-white/10" />
+          <div className="absolute h-[430px] w-[430px] rounded-[28%] border border-white/15 bg-white/5 backdrop-blur-sm" />
+          <div className="absolute h-[310px] w-[310px] rounded-[26%] border border-white/20 bg-white/10 backdrop-blur-sm" />
+
+          {/* main shield icon */}
+          <div className="relative flex h-36 w-36 items-center justify-center rounded-[24%] bg-white/15 backdrop-blur-md">
+            <svg
+              viewBox="0 0 24 24"
+              className="h-20 w-20 text-white"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M12 2l8 3v6c0 5-3.4 9.4-8 11-4.6-1.6-8-6-8-11V5l8-3z" />
+              <path d="M12 7v6M9 10.5h6" />
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const setAuth = useAuthStore((s) => s.setAuth);
@@ -30,67 +68,78 @@ export default function LoginPage() {
     }
   }
 
+  const inputCls =
+    "w-full rounded-xl border border-[var(--border)] bg-white px-4 py-2.5 text-sm text-[var(--ink)] outline-none transition placeholder:text-[var(--muted)]/60 focus:border-[var(--primary-tint)] focus:ring-4 focus:ring-[var(--primary-tint)]/30";
+  const labelCls =
+    "mb-1 block text-[11px] font-semibold uppercase tracking-[0.15em] text-[var(--muted)]";
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
-      <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="mb-8 flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 font-bold text-white">
-            D
-          </div>
-          <div>
-            <div className="text-lg font-semibold text-slate-900">Dr-Bloom Hospital</div>
-            <div className="text-sm text-slate-500">Management System</div>
-          </div>
+    <AuthShell>
+      {/* logo row */}
+      <div className="mb-10 flex items-center gap-2.5">
+        <div className="font-heading flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--primary)] text-sm font-bold text-white">
+          D
         </div>
-
-        <h1 className="text-xl font-semibold text-slate-900">Sign in to your account</h1>
-        <p className="mt-1 text-sm text-slate-500">Welcome back. Please enter your details.</p>
-
-        <form onSubmit={onSubmit} className="mt-6 space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Email</label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@hospital.com"
-              className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-slate-900 outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Password</label>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-slate-900 outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
-            />
-          </div>
-
-          {error && (
-            <div className="rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-700">{error}</div>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-full bg-blue-600 py-2.5 font-medium text-white transition hover:bg-blue-700 disabled:opacity-60"
-          >
-            {loading ? "Signing in…" : "Sign in"}
-          </button>
-        </form>
-
-        <div className="mt-6 rounded-xl bg-blue-50 px-4 py-3 text-xs leading-relaxed text-slate-600">
-          <b>Demo accounts</b> — password: <code className="font-mono">password</code>
-          <br />admin@hospital.test · sarah.doctor@hospital.test · nurse@hospital.test · reception@hospital.test
-        </div>
-        <p className="mt-4 text-center text-sm text-slate-500">
-          New patient? <Link href="/register" className="font-medium text-blue-600 hover:underline">Create an account</Link>
-        </p>
+        <span className="font-heading text-xl font-semibold text-[var(--ink)]">Dr&apos;Bloom</span>
       </div>
-    </div>
+
+      <h1 className="font-heading text-2xl font-bold text-[var(--ink)]">
+        Sign in to your account.
+      </h1>
+      <p className="mt-2 text-sm text-[var(--muted)]">Welcome back. Please enter your details.</p>
+
+      <form onSubmit={onSubmit} className="mt-8 space-y-5">
+        <div>
+          <label className={labelCls}>Email</label>
+          <input
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@hospital.com"
+            className={inputCls}
+          />
+        </div>
+        <div>
+          <label className={labelCls}>Password</label>
+          <input
+            type="password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="••••••••"
+            className={inputCls}
+          />
+        </div>
+
+        {error && (
+          <div className="rounded-xl bg-[var(--primary-tint)]/25 px-4 py-2.5 text-sm text-[var(--primary)]">
+            {error}
+          </div>
+        )}
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full rounded-full bg-[var(--primary)] py-3 text-xs font-bold uppercase tracking-[0.2em] text-white transition hover:bg-[var(--primary)]/85 disabled:opacity-60"
+        >
+          {loading ? "Signing in…" : "Next"}
+        </button>
+      </form>
+
+      <div className="mt-6 rounded-xl bg-[var(--primary-tint)]/20 px-4 py-3 text-xs leading-relaxed text-[var(--muted)]">
+        <b className="text-[var(--ink)]">Demo accounts</b> — password:{" "}
+        <code className="font-mono">password</code>
+        <br />
+        admin@hospital.test · sarah.doctor@hospital.test · nurse@hospital.test · reception@hospital.test
+      </div>
+
+      <p className="mt-4 text-center text-sm text-[var(--muted)]">
+        New patient?{" "}
+        <Link href="/register" className="font-medium text-[var(--primary)] hover:underline">
+          Create an account
+        </Link>
+      </p>
+    </AuthShell>
   );
 }

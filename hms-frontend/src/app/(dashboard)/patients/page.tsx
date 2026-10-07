@@ -1,5 +1,7 @@
 "use client";
 
+/* eslint-disable react-hooks/set-state-in-effect */
+
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/store/auth";
@@ -45,6 +47,7 @@ export default function PatientsPage() {
 
   const [result, setResult] = useState<Paginated | null>(null);
   const [page, setPage] = useState(1);
+  const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -67,12 +70,12 @@ export default function PatientsPage() {
 
   useEffect(() => {
     load(page, search);
-  }, [page, load]);
+  }, [page, search, load]);
 
   function onSearch(e: React.FormEvent) {
     e.preventDefault();
     setPage(1);
-    load(1, search);
+    setSearch(searchInput);
   }
 
   return (
@@ -89,8 +92,8 @@ export default function PatientsPage() {
         <div className="flex items-center gap-2">
           <form onSubmit={onSearch} className="flex gap-2">
             <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Search name or MRN…"
               className="w-56 rounded-full border border-slate-300 bg-white px-4 py-2 text-sm outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
             />
@@ -230,12 +233,13 @@ function PatientModal({
         await api.post("/patients", payload);
       }
       onSaved();
-    } catch (e: any) {
-      const errs = e.response?.data?.errors ?? {};
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { errors?: Record<string, string[]>, message?: string } } };
+      const errs = err.response?.data?.errors ?? {};
       const flat: Record<string, string> = {};
       for (const k of Object.keys(errs)) flat[k] = errs[k][0];
-      if (e.response?.data?.message && !Object.keys(flat).length) {
-        flat._form = e.response.data.message;
+      if (err.response?.data?.message && !Object.keys(flat).length) {
+        flat._form = err.response.data.message;
       }
       setErrors(flat);
     } finally {

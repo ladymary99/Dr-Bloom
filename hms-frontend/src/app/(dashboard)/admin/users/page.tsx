@@ -1,5 +1,7 @@
 "use client";
 
+/* eslint-disable react-hooks/set-state-in-effect */
+
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 
@@ -53,8 +55,9 @@ export default function UsersPage() {
     try {
       await api.put(`/admin/users/${u.id}`, { is_active: !u.is_active });
       load(page);
-    } catch (e: any) {
-      alert(e.response?.data?.message ?? "Action blocked.");
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { message?: string } } };
+      alert(err.response?.data?.message ?? "Action blocked.");
     }
   }
 
@@ -225,11 +228,12 @@ function UserModal({
         });
       }
       onSaved();
-    } catch (e: any) {
-      const errs = e.response?.data?.errors ?? {};
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { errors?: Record<string, string[]>, message?: string } } };
+      const errs = err.response?.data?.errors ?? {};
       const flat: Record<string, string> = {};
       for (const k of Object.keys(errs)) flat[k] = errs[k][0];
-      if (e.response?.data?.message && !Object.keys(flat).length) flat._form = e.response.data.message;
+      if (err.response?.data?.message && !Object.keys(flat).length) flat._form = err.response.data.message;
       setErrors(flat);
     } finally {
       setSaving(false);

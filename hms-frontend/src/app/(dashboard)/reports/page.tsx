@@ -1,5 +1,7 @@
 "use client";
 
+/* eslint-disable react-hooks/set-state-in-effect */
+
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 
@@ -24,10 +26,12 @@ const money = (v: number) =>
   "$" + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export default function ReportsPage() {
-  const today = new Date().toISOString().slice(0, 10);
-  const weekAgo = new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10);
-
-  const [from, setFrom] = useState(weekAgo);
+  const [today] = useState(() => new Date().toISOString().slice(0, 10));
+  const [from, setFrom] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 6);
+    return d.toISOString().slice(0, 10);
+  });
   const [to, setTo] = useState(today);
   const [collection, setCollection] = useState<Collection | null>(null);
   const [doctors, setDoctors] = useState<DoctorRow[]>([]);
@@ -44,7 +48,9 @@ export default function ReportsPage() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { load(from, to).catch(() => setLoading(false)); }, []); // initial only
+  useEffect(() => {
+    void load(from, to).catch(() => setLoading(false));
+  }, [from, to, load]);
 
   async function exportCsv(type: "collection" | "doctors") {
     const res = await api.get(`/admin/reports/export/${type}`, {

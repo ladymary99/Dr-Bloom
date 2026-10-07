@@ -1,5 +1,7 @@
 "use client";
 
+/* eslint-disable react-hooks/set-state-in-effect */
+
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
@@ -135,8 +137,9 @@ function DepartmentModal({ initial, onClose, onSaved }: { initial: Department | 
         await api.post("/departments", form);
       }
       onSaved();
-    } catch (e: any) {
-      const errs = e.response?.data?.errors ?? {};
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { errors?: Record<string, string[]> } } };
+      const errs = err.response?.data?.errors ?? {};
       const flat: Record<string, string> = {};
       for (const k of Object.keys(errs)) flat[k] = errs[k][0];
       setErrors(flat);

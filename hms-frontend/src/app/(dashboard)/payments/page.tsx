@@ -1,5 +1,7 @@
 "use client";
 
+/* eslint-disable react-hooks/set-state-in-effect */
+
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 
@@ -332,8 +334,9 @@ function RecordPaymentModal({ departments, onClose, onSaved }: { departments: De
         source,
       });
       onSaved();
-    } catch (e: any) {
-      setError(e.response?.data?.message ?? "Could not record payment.");
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { message?: string } } };
+      setError(err.response?.data?.message ?? "Could not record payment.");
     } finally {
       setSaving(false);
     }

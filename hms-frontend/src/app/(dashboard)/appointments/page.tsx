@@ -1,5 +1,7 @@
 "use client";
 
+/* eslint-disable react-hooks/set-state-in-effect */
+
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 
@@ -215,9 +217,13 @@ function BookModal({ onClose, onBooked }: { onClose: () => void; onBooked: () =>
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const minDateTime = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
-    .toISOString()
-    .slice(0, 16);
+  const [minDateTime, setMinDateTime] = useState("");
+
+  useEffect(() => {
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    setMinDateTime(now.toISOString().slice(0, 16));
+  }, []);
 
   useEffect(() => {
     api.get("/lookups/doctors").then((r) => setDoctors(r.data)).catch(() => {});
@@ -246,8 +252,9 @@ function BookModal({ onClose, onBooked }: { onClose: () => void; onBooked: () =>
         reason: reason || undefined,
       });
       onBooked();
-    } catch (e: any) {
-      setError(e.response?.data?.message ?? "Could not book. Try a different time.");
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { message?: string } } };
+      setError(err.response?.data?.message ?? "Could not book. Try a different time.");
     } finally {
       setSaving(false);
     }
