@@ -48,7 +48,8 @@ export default function AppointmentsPage() {
   const [result, setResult] = useState<Paginated | null>(null);
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState("");
-  const [date, setDate] = useState("");
+  const [tab, setTab] = useState<"today" | "all">("today");
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showModal, setShowModal] = useState(false);
@@ -78,6 +79,12 @@ export default function AppointmentsPage() {
     load(page, status, date);
   }
 
+  function setTabAndDate(t: "today" | "all") {
+    setTab(t);
+    setPage(1);
+    setDate(t === "today" ? new Date().toISOString().slice(0, 10) : "");
+  }
+
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
@@ -93,8 +100,23 @@ export default function AppointmentsPage() {
         </button>
       </div>
 
-      {/* Filters */}
+      {/* Tabs + Filters */}
       <div className="mb-4 flex flex-wrap items-center gap-3">
+        <div className="flex gap-1 rounded-full border border-slate-300 bg-white p-1">
+          <button
+            onClick={() => setTabAndDate("today")}
+            className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${tab === "today" ? "bg-blue-600 text-white" : "text-slate-600 hover:bg-slate-100"}`}
+          >
+            Today
+          </button>
+          <button
+            onClick={() => setTabAndDate("all")}
+            className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${tab === "all" ? "bg-blue-600 text-white" : "text-slate-600 hover:bg-slate-100"}`}
+          >
+            All appointments
+          </button>
+        </div>
+
         <select
           value={status}
           onChange={(e) => { setStatus(e.target.value); setPage(1); }}
@@ -105,15 +127,19 @@ export default function AppointmentsPage() {
             <option key={s} value={s}>{s.replace("_", " ")}</option>
           ))}
         </select>
-        <input
-          type="date"
-          value={date}
-          onChange={(e) => { setDate(e.target.value); setPage(1); }}
-          className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm outline-none focus:border-blue-600"
-        />
-        {(status || date) && (
+
+        {tab === "all" && (
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => { setDate(e.target.value); setPage(1); }}
+            className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm outline-none focus:border-blue-600"
+          />
+        )}
+
+        {(status || (tab === "all" && date)) && (
           <button
-            onClick={() => { setStatus(""); setDate(""); setPage(1); }}
+            onClick={() => { setStatus(""); setTabAndDate("all"); }}
             className="rounded-full border border-slate-300 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50"
           >
             Clear
