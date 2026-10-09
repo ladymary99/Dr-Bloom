@@ -184,6 +184,146 @@ function ValuesPanel() {
   );
 }
 
+/* ---------- what makes us special — auto slider like the image ---------- */
+const specials = [
+  {
+    id: "01",
+    title: "Advanced laboratory",
+    desc: "Same-day diagnostic testing with modern analyzers — results go straight to your patient portal the moment they're verified.",
+    img: "/1.webp",
+  },
+  {
+    id: "02",
+    title: "Smart patient portal",
+    desc: "Appointments, lab results, e-prescriptions and visit history — everything about your care, in one secure place.",
+    img: "/4.webp",
+  },
+  {
+    id: "03",
+    title: "24/7 emergency care",
+    desc: "A coordinated emergency team with rapid triage and advanced monitoring — ready around the clock, every day of the year.",
+    img: "/5.webp",
+  },
+  {
+    id: "04",
+    title: "Connected specialists",
+    desc: "Multidisciplinary teams share one live record across departments, so every specialist sees the full picture of your health.",
+    img: "/7.webp",
+  },
+];
+
+function SpecialSlider() {
+  const [index, setIndex] = useState(0);
+  const [paused, setPaused] = useState(false);
+
+  useEffect(() => {
+    if (paused) return;
+    const id = setInterval(() => setIndex((i) => (i + 1) % specials.length), 5200);
+    return () => clearInterval(id);
+  }, [paused]);
+
+  const current = specials[index];
+  const next = specials[(index + 1) % specials.length];
+
+  return (
+    <section className="py-24">
+      <div className="mx-auto max-w-6xl px-4">
+        {/* heading — like "Production" */}
+        <div className="mb-10 flex items-end justify-center gap-4">
+          <h2 className="font-heading text-4xl font-bold tracking-tight text-[var(--ink)] sm:text-5xl">
+            What makes us special
+          </h2>
+          <span className="mb-1 hidden rounded-full border border-[var(--border)] bg-white px-3 py-1 text-xs text-[var(--muted)] sm:block">
+            {current.id} / 0{specials.length}
+          </span>
+        </div>
+
+        {/* panel — like the image */}
+        <div
+          className="relative h-[580px] overflow-hidden rounded-3xl bg-gradient-to-br from-[var(--primary-tint)]/25 via-[var(--primary-tint)]/15 to-white sm:h-[540px]"
+          onMouseEnter={() => setPaused(true)}
+          onMouseLeave={() => setPaused(false)}
+        >
+          {/* left: index list + description */}
+          <div className="absolute left-6 top-10 z-20 sm:left-12">
+            <ul className="space-y-3">
+              {specials.map((s, i) => (
+                <li key={s.id}>
+                  <button
+                    onClick={() => setIndex(i)}
+                    className={`group flex items-center gap-3 text-left transition-all duration-500 ${
+                      i === index ? "translate-x-1" : "opacity-50 hover:opacity-80"
+                    }`}
+                  >
+                    <span
+                      className={`h-px transition-all duration-500 ${
+                        i === index ? "w-8 bg-[var(--primary)]" : "w-4 bg-[var(--muted)] group-hover:w-6"
+                      }`}
+                    />
+                    <span
+                      className={`font-heading text-xs sm:text-sm ${
+                        i === index ? "font-semibold text-[var(--primary)]" : "text-[var(--muted)]"
+                      }`}
+                    >
+                      {s.title}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+
+            <p className="mt-40 hidden max-w-[240px] text-xs leading-relaxed text-[var(--muted)] sm:mt-48 sm:block">
+              {current.desc}
+            </p>
+          </div>
+
+          {/* center: big photo (crossfade + slow zoom) */}
+          <div className="absolute left-1/2 top-1/2 h-[420px] w-[62%] max-w-[560px] -translate-x-1/2 -translate-y-1/2 sm:w-[48%]">
+            {specials.map((s, i) => (
+              <img
+                key={s.id}
+                src={s.img}
+                alt={s.title}
+                className={`absolute inset-0 h-full w-full rounded-2xl object-cover shadow-2xl shadow-[var(--primary)]/20 transition-all duration-[1400ms] ease-out ${
+                  i === index ? "scale-100 opacity-100" : "scale-110 opacity-0"
+                }`}
+              />
+            ))}
+          </div>
+
+          {/* right: faded preview of the next slide */}
+          <div className="absolute right-6 top-1/2 hidden h-[300px] w-[220px] -translate-y-1/2 overflow-hidden rounded-2xl opacity-40 sm:block">
+            <img
+              key={next.id}
+              src={next.img}
+              alt=""
+              className="h-full w-full object-cover transition-all duration-[1400ms]"
+            />
+            <div className="absolute inset-0 bg-white/40" />
+          </div>
+
+          {/* navy info card — bottom right */}
+          <div className="absolute bottom-8 right-6 z-20 sm:right-12">
+            <div className="w-[240px] rounded-2xl bg-[var(--primary)] p-6 text-white shadow-xl shadow-[var(--primary)]/30">
+              <div className="font-heading text-sm font-semibold text-[var(--primary-tint)]">
+                {current.id}
+              </div>
+              <div className="font-heading mt-2 text-2xl font-bold leading-tight">
+                {current.title}
+              </div>
+            </div>
+          </div>
+
+          {/* mobile description */}
+          <p className="absolute bottom-8 left-6 right-6 text-xs leading-relaxed text-[var(--muted)] sm:hidden">
+            {current.desc}
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function AboutPage() {
   const [info, setInfo] = useState<Info | null>(null);
 
@@ -236,6 +376,9 @@ export default function AboutPage() {
 
       {/* Values panel — sticky left column */}
       <ValuesPanel />
+
+      {/* What makes us special — auto slider */}
+      <SpecialSlider />
 
     </div>
   );

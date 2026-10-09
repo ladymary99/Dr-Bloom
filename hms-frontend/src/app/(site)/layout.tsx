@@ -20,6 +20,13 @@ const footerLinks = [
   { href: "/contact", label: "Terms and Conditions" },
 ];
 
+/* doctor photos for the footer avatars — swap these paths for your real photos */
+const footerDoctors = [
+  { img: "/doc1.webp", name: "Dr. Sarah Khan" },
+  { img: "/doc2.webp", name: "Dr. Karim Nazari" },
+  { img: "/doc3.webp", name: "Dr. Maya Anderson" },
+];
+
 export default function SiteLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
@@ -28,85 +35,100 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
       {/* Navbar */}
       <header className="sticky top-0 z-50 border-b border-[var(--border)] bg-white/90 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
+          {/* logo — no roll animation, kept as-is */}
           <Link href="/" className="flex items-center gap-2.5">
-           
             <span className="font-heading text-lg font-semibold">Dr&apos;Bloom</span>
           </Link>
+
+          {/* nav links — same roll hover as the buttons */}
           <nav className="hidden items-center gap-1 md:flex">
             {links.map((l) => (
-              <Link key={l.href} href={l.href}
-                className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+              <Link
+                key={l.href}
+                href={l.href}
+                className={`btn-roll rounded-full px-4 py-2 text-sm font-medium ${
                   pathname === l.href
                     ? "text-[var(--primary)]"
                     : "text-[var(--muted)] hover:text-[var(--ink)]"
-                }`}>
-                {l.label}
+                }`}
+              >
+                <span className="roll">
+                  <span className="r1">{l.label}</span>
+                  <span className="r2" aria-hidden="true">{l.label}</span>
+                </span>
               </Link>
             ))}
           </nav>
+
           <div className="flex items-center gap-2">
             <Link
-  href="/login"
-  className="btn-hero btn-roll border border-[var(--primary-tint)]   text-[var(--muted)] items-center gap-2 rounded-full px-5 py-2 text-xs  uppercase"
->
-  <span className="roll">
-    <span className="r1">Sign in</span>
-    <span className="r2" aria-hidden="true">Sign in</span>
-  </span>
-</Link>
-            
+              href="/login"
+              className="btn-hero btn-roll border border-[var(--primary-tint)] text-[var(--muted)] items-center gap-2 rounded-full px-5 py-2 text-xs uppercase"
+            >
+              <span className="roll">
+                <span className="r1">Sign in</span>
+                <span className="r2" aria-hidden="true">Sign in</span>
+              </span>
+            </Link>
+
             <Link
-  href="/register"
-  className="btn-hero btn-roll items-center gap-2 rounded-full px-5 py-2 text-xs  uppercase bg-[var(--primary-tint)]"
->
-  <span className="roll">
-    <span className="r1">Book appointment</span>
-    <span className="r2" aria-hidden="true">Book appointment</span>
-  </span>
-</Link>
+              href="/register"
+              className="btn-hero btn-roll items-center gap-2 rounded-full px-5 py-2 text-xs uppercase bg-[var(--primary-tint)]"
+            >
+              <span className="roll">
+                <span className="r1">Book appointment</span>
+                <span className="r2" aria-hidden="true">Book appointment</span>
+              </span>
+            </Link>
           </div>
         </div>
       </header>
 
       {children}
 
-           {/* Footer — big rounded gradient panel like the image */}
+      {/* Footer — big rounded gradient panel */}
       <footer className="px-4 pb-6 pt-4">
-        <div className="mx-auto flex min-h-[620px] max-w-6xl flex-col justify-between overflow-hidden rounded-3xl bg-gradient-to-br from-[#ccd6f1] via-[#b2c2ea] to-[#98abdf]">
+        <div className="mx-auto flex min-h-[620px] max-w-6xl flex-col justify-between overflow-hidden rounded-3xl bg-gradient-to-br from-[#b2c2ea] via-[#98abdf] to-[#6684b8] ">
           <div className="grid gap-14 p-10 py-16 md:grid-cols-2 md:p-14 md:py-20">
-            {/* left: link column */}
+            {/* left: link column — same roll hover */}
             <ul className="space-y-4">
               {footerLinks.map((l) => (
                 <li key={l.label}>
-                  <Link href={l.href} className="text-sm font-medium text-white/90 transition hover:text-white">
-                    {l.label}
+                  <Link href={l.href} className="btn-roll inline-block text-sm font-medium text-white/90 hover:text-white">
+                    <span className="roll">
+                      <span className="r1">{l.label}</span>
+                      <span className="r2" aria-hidden="true">{l.label}</span>
+                    </span>
                   </Link>
                 </li>
               ))}
             </ul>
 
-            {/* right: heading + avatars */}
+            {/* right: heading + doctor avatars */}
             <div>
               <h2 className="font-heading max-w-sm text-3xl font-semibold leading-tight text-white sm:text-4xl">
                 Complete care for every stage of your life
               </h2>
-              {/* overlapping doctor avatars */}
+              {/* overlapping doctor photos */}
               <div className="mt-6 flex -space-x-3">
-                {["SA", "KN", "MA"].map((n) => (
-                  <div
-                    key={n}
-                    className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-white/80 bg-[var(--primary)] text-xs font-bold text-white shadow-md"
-                  >
-                    {n}
-                  </div>
+                {footerDoctors.map((d) => (
+                  <img
+                    key={d.name}
+                    src={d.img}
+                    alt={d.name}
+                    title={d.name}
+                    className="h-12 w-12 rounded-full border-2 border-white/80 object-cover shadow-md"
+                  />
                 ))}
               </div>
             </div>
           </div>
 
-          {/* bottom row: logo + contact */}
+          {/* bottom row: bigger logo + contact */}
           <div className="flex flex-col gap-8 p-10 pt-0 md:flex-row md:items-end md:justify-between md:p-14 md:pt-0">
-            <span className="font-heading text-4xl font-bold text-white sm:text-5xl">Dr&apos;Bloom</span>
+            <span className="font-heading text-6xl font-bold leading-none text-white sm:text-7xl">
+              Dr&apos;Bloom
+            </span>
 
             <ul className="space-y-2.5 text-sm text-white/90">
               <li className="flex items-center gap-3">

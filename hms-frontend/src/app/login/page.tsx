@@ -77,9 +77,7 @@ export default function LoginPage() {
     <AuthShell>
       {/* logo row */}
       <div className="mb-10 flex items-center gap-2.5">
-        <div className="font-heading flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--primary)] text-sm font-bold text-white">
-          D
-        </div>
+       
         <span className="font-heading text-xl font-semibold text-[var(--ink)]">Dr&apos;Bloom</span>
       </div>
 
