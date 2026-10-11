@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/store/auth";
@@ -18,8 +18,14 @@ type Stats = {
   visits_today: number;
   beds_total: number;
   beds_occupied: number;
+  low_stock_count: number;
+  low_stock_items: {
+    id: number; item_name: string; quantity: number; min_level: number; unit: string | null;
+    department: { name: string } | null;
+  }[];
   trends: { appointments: Trend; patients: Trend; visits: Trend };
   patient_chart: { label: string; patients: number; visits: number }[];
+  dept_performance: { name: string; current: number; previous: number }[];
   upcoming: {
     id: string; appointment_at: string; status: string; reason: string | null;
     patient: { mrn: string; first_name: string; last_name: string } | null;
@@ -89,6 +95,9 @@ function timeAgo(iso: string) {
   return `${Math.floor(s / 86400)}d ago`;
 }
 
+const moneyShort = (v: number) =>
+  v >= 1000 ? `$${(v / 1000).toFixed(1)}K` : `$${Math.round(v)}`;
+
 export default function DashboardPage() {
   const user = useAuthStore((s) => s.user);
   const [stats, setStats] = useState<Stats | null>(null);
@@ -97,14 +106,11 @@ export default function DashboardPage() {
 
   useEffect(() => {
     api.get("/settings").then((response) => setAnnouncement(response.data.announcement ?? "")).catch(() => {});
-    const date = new Date().toISOString().slice(0, 10);
-    Promise.all([
-      api.get("/dashboard/stats"),
-      api.get("/appointments", { params: { date } }),
-    ]).then(([s, a]) => {
-      setStats(s.data);
-      setToday(a.data.data);
-    }).catch(() => {});
+    api.get("/dashboard/stats").then((response) => setStats(response.data)).catch(() => {});
+
+    const now = new Date();
+    const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    api.get("/appointments", { params: { date } }).then((response) => setToday(response.data.data)).catch(() => {});
   }, []);
 
   const cards: StatCard[] = stats
@@ -174,7 +180,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-3">
-        {/* Patient statistics — gradient area chart */}
+        {/* Left column: Patient statistics + Department performance */}
         <div className={`${cardCls} xl:col-span-2`}>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="font-heading text-lg font-semibold text-[var(--ink)]">Patient statistics</h2>
@@ -183,7 +189,24 @@ export default function DashboardPage() {
               <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-[var(--primary-tint)]" /> Visits</span>
             </div>
           </div>
-          {stats ? <TrendChart data={stats.patient_chart} /> : <div className="h-48 animate-pulse rounded-2xl bg-[var(--primary-tint)]/10" />}
+          {stats ? <TrendChart data={stats.patient_chart} /> : <div className="mt-4 h-52 animate-pulse rounded-2xl bg-[var(--primary-tint)]/10" />}
+
+          {/* Department performance — vertical bar chart like the reference */}
+          <div className="mt-6 border-t border-[var(--border)]/60 pt-5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="font-heading text-lg font-semibold text-[var(--ink)]">Department performance</h2>
+              <span className="text-xs text-[var(--muted)]">this month vs last month</span>
+            </div>
+            {stats && stats.dept_performance.length > 0 ? (
+              <DeptBars data={stats.dept_performance} />
+            ) : (
+              <div className="mt-4 space-y-3">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="h-6 animate-pulse rounded bg-[var(--primary-tint)]/15" />
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Right column: today + upcoming */}
@@ -240,7 +263,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Activity + at a glance (with occupancy donut) */}
+      {/* Activity + at a glance (with occupancy gauge) */}
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className={`${cardCls} !p-0 overflow-hidden lg:col-span-2`}>
           <div className="flex items-center justify-between border-b border-[var(--border)] px-6 py-4">
@@ -271,15 +294,15 @@ export default function DashboardPage() {
         <div className={cardCls}>
           <h2 className="font-heading font-semibold text-[var(--ink)]">Hospital at a glance</h2>
 
-          {/* bed occupancy donut */}
+          {/* bed occupancy segmented gauge */}
           {stats && stats.beds_total > 0 && (
             <div className="mt-4 flex items-center gap-5">
               <Donut occupied={stats.beds_occupied} total={stats.beds_total} />
               <div className="text-sm">
-                <div className="font-heading text-2xl font-bold tabular-nums text-[var(--ink)]">
-                  {Math.round((stats.beds_occupied / stats.beds_total) * 100)}%
-                </div>
                 <div className="text-xs text-[var(--muted)]">beds occupied</div>
+                <div className="mt-0.5 font-heading text-lg font-bold tabular-nums text-[var(--ink)]">
+                  {stats.beds_occupied} / {stats.beds_total}
+                </div>
               </div>
             </div>
           )}
@@ -307,60 +330,220 @@ export default function DashboardPage() {
 
       {/* Finance + alerts (existing components) */}
       <FinanceOverview />
-      <LowStockAlerts />
+      <LowStockAlerts
+        count={stats?.low_stock_count ?? 0}
+        items={stats?.low_stock_items ?? []}
+      />
     </div>
   );
 }
 
-/* ---------- gradient area chart (pure SVG) ---------- */
+/* ---------- modern smooth area chart (pure SVG, theme colors, hover tooltip) ---------- */
 function TrendChart({ data }: { data: { label: string; patients: number; visits: number }[] }) {
-  const W = 640, H = 190, PAD = 10;
+  const W = 640, H = 200;
+  const PT = 16, PB = 30, PX = 14;
   const max = Math.max(...data.flatMap((d) => [d.patients, d.visits]), 1);
-  const x = (i: number) => PAD + (i * (W - PAD * 2)) / Math.max(data.length - 1, 1);
-  const y = (v: number) => H - PAD - (v / max) * (H - PAD * 2);
-  const pts = (key: "patients" | "visits") => data.map((d, i) => `${x(i)},${y(d[key])}`).join(" ");
-  const areaPts = `${PAD},${H - PAD} ${pts("patients")} ${x(data.length - 1)},${H - PAD}`;
+  const chartH = H - PT - PB;
+  const x = (i: number) => PX + (i * (W - PX * 2)) / Math.max(data.length - 1, 1);
+  const y = (v: number) => PT + chartH - (v / max) * chartH;
+  const [hover, setHover] = useState<number | null>(null);
+  const svgRef = useRef<SVGSVGElement | null>(null);
+
+  function smoothPath(key: "patients" | "visits"): string {
+    const p = data.map((d, i): [number, number] => [x(i), y(d[key])]);
+    if (p.length < 2) return "";
+    let dPath = `M ${p[0][0]},${p[0][1]}`;
+    for (let i = 0; i < p.length - 1; i++) {
+      const p0 = p[Math.max(0, i - 1)], p1 = p[i], p2 = p[i + 1], p3 = p[Math.min(p.length - 1, i + 2)];
+      const c1x = p1[0] + (p2[0] - p0[0]) / 6, c1y = p1[1] + (p2[1] - p0[1]) / 6;
+      const c2x = p2[0] - (p3[0] - p1[0]) / 6, c2y = p2[1] - (p3[1] - p1[1]) / 6;
+      dPath += ` C ${c1x},${c1y} ${c2x},${c2y} ${p2[0]},${p2[1]}`;
+    }
+    return dPath;
+  }
+
+  const areaPath = (key: "patients" | "visits") =>
+    `${smoothPath(key)} L ${x(data.length - 1)},${PT + chartH} L ${x(0)},${PT + chartH} Z`;
+
+  function onMove(e: React.MouseEvent<SVGSVGElement>) {
+    if (!svgRef.current || !data.length) return;
+    const rect = svgRef.current.getBoundingClientRect();
+    const xPos = ((e.clientX - rect.left) / rect.width) * W;
+    const i = Math.round(((xPos - PX) / (W - PX * 2)) * (data.length - 1));
+    setHover(Math.max(0, Math.min(data.length - 1, i)));
+  }
+
+  const tipX = hover !== null ? Math.min(Math.max(x(hover), 90), W - 90) : 0;
 
   return (
     <div className="mt-4">
-      <svg viewBox={`0 0 ${W} ${H}`} className="h-48 w-full">
+      <svg
+        ref={svgRef}
+        viewBox={`0 0 ${W} ${H}`}
+        className="h-auto w-full cursor-crosshair"
+        onMouseMove={onMove}
+        onMouseLeave={() => setHover(null)}
+      >
         <defs>
-          <linearGradient id="areaFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#B2C2EA" stopOpacity="0.45" />
-            <stop offset="100%" stopColor="#B2C2EA" stopOpacity="0.02" />
+          <linearGradient id="patientsFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.2" />
+            <stop offset="100%" stopColor="var(--primary)" stopOpacity="0.01" />
+          </linearGradient>
+          <linearGradient id="visitsFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="var(--primary-tint)" stopOpacity="0.35" />
+            <stop offset="100%" stopColor="var(--primary-tint)" stopOpacity="0.01" />
           </linearGradient>
         </defs>
+
         {[0.25, 0.5, 0.75].map((f) => (
-          <line key={f} x1={PAD} x2={W - PAD} y1={H * f} y2={H * f} stroke="#eef1f7" strokeWidth="1" />
+          <line key={f} x1={PX} x2={W - PX} y1={PT + chartH * f} y2={PT + chartH * f}
+            stroke="var(--border)" strokeWidth="1" strokeDasharray="3 5" />
         ))}
-        <polygon points={areaPts} fill="url(#areaFill)" />
-        <polyline points={pts("visits")} fill="none" stroke="#B2C2EA" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-        <polyline points={pts("patients")} fill="none" stroke="#021233" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+
+        <path d={areaPath("patients")} fill="url(#patientsFill)" />
+        <path d={areaPath("visits")} fill="url(#visitsFill)" />
+        <path d={smoothPath("patients")} fill="none" stroke="var(--primary)" strokeWidth="2.5" strokeLinecap="round" />
+        <path d={smoothPath("visits")} fill="none" stroke="var(--primary-tint)" strokeWidth="2.5" strokeLinecap="round" />
+
+        {hover !== null && (
+          <g>
+            <line x1={x(hover)} x2={x(hover)} y1={PT} y2={PT + chartH} stroke="var(--border)" strokeWidth="1" />
+            <circle cx={x(hover)} cy={y(data[hover].patients)} r="4" fill="var(--primary)" stroke="#fff" strokeWidth="2" />
+            <circle cx={x(hover)} cy={y(data[hover].visits)} r="4" fill="var(--primary-tint)" stroke="#fff" strokeWidth="2" />
+          </g>
+        )}
+
+        {hover !== null && (
+          <g transform={`translate(${tipX - 72}, ${Math.min(y(data[hover].patients), y(data[hover].visits)) - 14})`}>
+            <rect width="144" height="52" rx="10" fill="var(--ink)" opacity="0.92" />
+            <text x="12" y="18" fontSize="10" fill="#fff" fontWeight="600">{data[hover].label}</text>
+            <circle cx="16" cy="32" r="3" fill="var(--primary-tint)" />
+            <text x="26" y="36" fontSize="10" fill="#cbd5e1">Visits: {data[hover].visits}</text>
+            <circle cx="84" cy="32" r="3" fill="#fff" />
+            <text x="94" y="36" fontSize="10" fill="#cbd5e1">New: {data[hover].patients}</text>
+          </g>
+        )}
+
         {data.map((d, i) => (
           <g key={i}>
-            <circle cx={x(i)} cy={y(d.patients)} r="3" fill="#021233" stroke="#fff" strokeWidth="1.5" />
-            <text x={x(i)} y={H - 0} fontSize="10" fill="#6684b8" textAnchor="middle" dominantBaseline="hanging">{d.label}</text>
+            <circle cx={x(i)} cy={y(d.patients)} r="3" fill="var(--primary)" stroke="#fff" strokeWidth="1.5" />
+            <circle cx={x(i)} cy={y(d.visits)} r="2.5" fill="var(--primary-tint)" stroke="#fff" strokeWidth="1.5" />
+            <text x={x(i)} y={H - 10} fontSize="10" fill="var(--muted)" textAnchor="middle">{d.label}</text>
           </g>
         ))}
       </svg>
-      <div className="mt-1 text-right text-xs tabular-nums text-[var(--muted)]">peak: {max}</div>
+      <div className="mt-1 flex items-center justify-between text-xs tabular-nums text-[var(--muted)]">
+        <span>scale: 0 – {max}</span>
+        <span>peak: {max}</span>
+      </div>
     </div>
   );
 }
 
-/* ---------- occupancy donut (pure SVG) ---------- */
-function Donut({ occupied, total }: { occupied: number; total: number }) {
-  const R = 34, CIRC = 2 * Math.PI * R;
-  const pct = total > 0 ? occupied / total : 0;
+/* ---------- department performance — vertical bars (like the reference) ---------- */
+function DeptBars({ data }: { data: { name: string; current: number; previous: number }[] }) {
+  const max = Math.max(...data.map((d) => d.current), 1);
+
+  const totalCurrent = data.reduce((s, d) => s + d.current, 0);
+  const totalPrevious = data.reduce((s, d) => s + d.previous, 0);
+  const totalPct = totalPrevious > 0 ? Math.round(((totalCurrent - totalPrevious) / totalPrevious) * 100) : 0;
+
+  const pctOf = (d: { current: number; previous: number }) =>
+    d.previous > 0
+      ? Math.round(((d.current - d.previous) / d.previous) * 100)
+      : d.current > 0 ? 100 : 0;
+
   return (
-    <svg viewBox="0 0 84 84" className="h-20 w-20 -rotate-90">
-      <circle cx="42" cy="42" r={R} fill="none" stroke="#e8edf6" strokeWidth="9" />
-      <circle
-        cx="42" cy="42" r={R} fill="none"
-        stroke="#021233" strokeWidth="9" strokeLinecap="round"
-        strokeDasharray={`${CIRC * pct} ${CIRC}`}
-        className="transition-all duration-1000 ease-out"
-      />
-    </svg>
+    <div className="mt-4">
+      {/* header like the reference */}
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-baseline gap-2">
+          <span className="font-heading text-2xl font-bold tabular-nums text-[var(--ink)]">
+            {moneyShort(totalCurrent)}
+          </span>
+          <span className="text-xs text-[var(--muted)]">this month</span>
+          <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${totalPct >= 0 ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-600"}`}>
+            {totalPct >= 0 ? "▲" : "▼"} {Math.abs(totalPct)}%
+          </span>
+        </div>
+        <span className="text-xs tabular-nums text-[var(--muted)]">{data.length} departments</span>
+      </div>
+
+      {/* bars */}
+      <div className="relative">
+        {/* faint gridlines like the reference */}
+        {[0.25, 0.5, 0.75].map((f) => (
+          <div key={f} className="absolute left-0 right-0 border-t border-dashed border-[var(--border)]"
+            style={{ bottom: `${f * 100}%` }} />
+        ))}
+
+        <div className="relative flex h-44 items-end gap-2 sm:gap-3">
+          {data.map((d, i) => {
+            const p = pctOf(d);
+            const up = p >= 0;
+            return (
+              <div key={i} className="group flex h-full flex-1 flex-col items-center justify-end">
+                {/* tooltip pill — appears above the hovered bar */}
+                <div className="pointer-events-none relative mb-1 w-full opacity-0 transition-all duration-200 group-hover:opacity-100">
+                  <div className="absolute bottom-0 left-1/2 flex -translate-x-1/2 flex-col items-center">
+                    <div className="whitespace-nowrap rounded-lg bg-[var(--ink)] px-2.5 py-1 text-[10px] font-semibold text-white shadow-lg">
+                      {moneyShort(d.current)}
+                      <span className={`ml-1.5 ${up ? "text-emerald-400" : "text-red-400"}`}>
+                        {up ? "▲" : "▼"}{Math.abs(p)}%
+                      </span>
+                    </div>
+                    <div className="h-1.5 w-px bg-[var(--ink)]" />
+                  </div>
+                </div>
+
+                {/* bar — light by default, solid primary on hover */}
+                <div
+                  className="w-full max-w-14 rounded-t-xl bg-[var(--primary-tint)] transition-all duration-300 group-hover:bg-[var(--primary)]"
+                  style={{ height: `${Math.max((d.current / max) * 100, 4)}%` }}
+                />
+
+                {/* department label */}
+                <span className="mt-2 max-w-full truncate text-[9px] text-[var(--muted)] sm:text-[10px]">
+                  {d.name.length > 7 ? d.name.slice(0, 6) + "…" : d.name}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- segmented occupancy gauge (pure SVG, global theme colors) ---------- */
+function Donut({ occupied, total }: { occupied: number; total: number }) {
+  const SEGMENTS = 40;
+  const pct = total > 0 ? occupied / total : 0;
+  const filled = Math.round(pct * SEGMENTS);
+
+  return (
+    <div className="relative h-32 w-32">
+      <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90">
+        {Array.from({ length: SEGMENTS }).map((_, i) => (
+          <line
+            key={i}
+            x1="60"
+            y1="9"
+            x2="60"
+            y2={i < filled ? "27" : "25"}
+            stroke={i < filled ? "var(--primary)" : "var(--border)"}
+            strokeWidth="5.5"
+            strokeLinecap="round"
+            transform={`rotate(${(i / SEGMENTS) * 360} 60 60)`}
+            className="transition-all duration-500"
+          />
+        ))}
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <span className="font-heading text-2xl font-bold tabular-nums text-[var(--ink)]">
+          {Math.round(pct * 100)}%
+        </span>
+      </div>
+    </div>
   );
 }

@@ -1,40 +1,30 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
-import { api } from "@/lib/api";
 import { useAuthStore } from "@/store/auth";
 
-type Stats = {
-  low_stock_count: number;
-  low_stock_items: {
-    id: number; item_name: string; quantity: number;
-    min_level: number; unit: string | null;
-    department: { name: string } | null;
-  }[];
+type LowStockItem = {
+  id: number; item_name: string; quantity: number;
+  min_level: number; unit: string | null;
+  department: { name: string } | null;
 };
 
-export default function LowStockAlerts() {
+export default function LowStockAlerts({ count, items }: { count: number; items: LowStockItem[] }) {
   const canView = useAuthStore((s) => s.hasPermission("manage departments"));
-  const [stats, setStats] = useState<Stats | null>(null);
 
-  useEffect(() => {
-    if (canView) api.get("/dashboard/stats").then((r) => setStats(r.data)).catch(() => {});
-  }, [canView]);
-
-  if (!canView || !stats || stats.low_stock_count === 0) return null;
+  if (!canView || count === 0) return null;
 
   return (
     <div className="mt-6 rounded-2xl border border-amber-200 bg-white">
       <div className="flex items-center justify-between border-b border-amber-100 px-6 py-4">
         <h2 className="flex items-center gap-2 font-semibold text-slate-900">
           ⚠️ Low stock alerts
-          <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700">{stats.low_stock_count} items</span>
+          <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700">{count} items</span>
         </h2>
         <span className="text-xs text-slate-400">Departments need to reorder these</span>
       </div>
       <ul className="divide-y divide-slate-50">
-        {stats.low_stock_items.map((it) => (
+        {items.map((it) => (
           <li key={it.id} className="flex items-center gap-4 px-6 py-3.5 text-sm">
             <span className="text-lg">📦</span>
             <div className="min-w-0 flex-1">

@@ -13,13 +13,18 @@ type LabTest = {
 };
 
 const pill: Record<string, string> = {
-  ordered: "bg-blue-50 text-blue-700",
-  in_progress: "bg-amber-50 text-amber-700",
-  completed: "bg-green-50 text-green-700",
-  cancelled: "bg-red-50 text-red-600",
+  ordered: "bg-[var(--primary-tint)]/25 text-[var(--primary)]",
+  in_progress: "bg-amber-100 text-amber-700",
+  completed: "bg-emerald-100 text-emerald-700",
+  cancelled: "bg-red-100 text-red-600",
 };
 
 const TABS = ["", "ordered", "in_progress", "completed", "cancelled"] as const;
+
+const iconProps = {
+  fill: "none", stroke: "currentColor", strokeWidth: 1.7,
+  strokeLinecap: "round", strokeLinejoin: "round", viewBox: "0 0 24 24",
+} as const;
 
 export default function LabPage() {
   const [tests, setTests] = useState<LabTest[] | null>(null);
@@ -41,70 +46,97 @@ export default function LabPage() {
   }
 
   return (
-    <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-slate-900">Laboratory</h1>
-        <p className="mt-1 text-sm text-slate-500">{tests ? `${tests.length} tests in view` : "Loading…"} — ordered by doctors, newest first.</p>
+    <div className="animate-fade-up">
+      <div className="mb-8">
+        <h1 className="font-heading text-3xl font-bold tracking-tight text-[var(--ink)]">Laboratory</h1>
+        <p className="mt-1 text-sm text-[var(--muted)]">{tests ? `${tests.length} tests in view` : "Loading…"} — ordered by doctors, newest first.</p>
       </div>
 
       <div className="mb-4 flex flex-wrap gap-2">
         {TABS.map((s) => (
           <button key={s} onClick={() => setTab(s)}
-            className={`rounded-full px-4 py-1.5 text-sm font-medium capitalize transition ${tab === s ? "bg-blue-600 text-white" : "border border-slate-300 text-slate-600 hover:bg-slate-50"}`}>
+            className={`rounded-full px-4 py-1.5 text-sm font-medium capitalize transition ${tab === s ? "bg-[var(--primary)] text-white shadow-sm" : "border border-[var(--border)] bg-white text-[var(--muted)] hover:border-[var(--primary-tint)] hover:text-[var(--primary)]"}`}>
             {s === "" ? "All" : s.replace("_", " ")}
           </button>
         ))}
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white">
+      <div className="overflow-hidden rounded-3xl border border-[var(--border)] bg-white shadow-sm">
         {!tests ? (
-          <div className="p-12 text-center text-slate-500">Loading…</div>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-[var(--border)] bg-[var(--primary-tint)]/10 text-left text-xs font-semibold text-[var(--muted)]">
+                <th className="px-6 py-3">Test</th>
+                <th className="px-6 py-3">Patient</th>
+                <th className="px-6 py-3">Ordered by</th>
+                <th className="px-6 py-3">Ordered</th>
+                <th className="px-6 py-3">Status</th>
+                <th className="px-6 py-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <tr key={i} className="border-b border-[var(--border)]/60 last:border-0">
+                  {Array.from({ length: 6 }).map((_, j) => (
+                    <td key={j} className="px-6 py-4">
+                      <div className="h-4 animate-pulse rounded bg-[var(--primary-tint)]/20" style={{ width: `${50 + ((i * 9 + j * 13) % 40)}%` }} />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         ) : tests.length === 0 ? (
-          <div className="p-12 text-center text-slate-500">No tests in this view.</div>
+          <div className="p-12 text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[var(--primary-tint)]/20">
+              <svg {...iconProps} className="h-5 w-5 text-[var(--primary)]"><path d="M9 3h6M10 3v6.34L4.62 18.5A2 2 0 0 0 6.41 21h11.18a2 2 0 0 0 1.79-2.5L14 9.34V3"/><path d="M7 15h10"/></svg>
+            </div>
+            <p className="mt-3 text-sm text-[var(--muted)]">No tests in this view.</p>
+          </div>
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-100 text-left text-xs text-slate-400">
-                <th className="px-6 py-3 font-medium">Test</th>
-                <th className="px-6 py-3 font-medium">Patient</th>
-                <th className="px-6 py-3 font-medium">Ordered by</th>
-                <th className="px-6 py-3 font-medium">Ordered</th>
-                <th className="px-6 py-3 font-medium">Status</th>
-                <th className="px-6 py-3 font-medium text-right">Actions</th>
+              <tr className="border-b border-[var(--border)] bg-[var(--primary-tint)]/10 text-left text-xs font-semibold text-[var(--muted)]">
+                <th className="px-6 py-3">Test</th>
+                <th className="px-6 py-3">Patient</th>
+                <th className="px-6 py-3">Ordered by</th>
+                <th className="px-6 py-3">Ordered</th>
+                <th className="px-6 py-3">Status</th>
+                <th className="px-6 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
               {tests.map((t) => (
-                <tr key={t.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50">
-                  <td className="px-6 py-3 font-medium text-slate-900">{t.test_name}</td>
-                  <td className="px-6 py-3 text-slate-700">
-                    {t.patient.first_name} {t.patient.last_name}
-                    <div className="text-xs text-blue-700">{t.patient.mrn}</div>
-                  </td>
-                  <td className="px-6 py-3 text-slate-600">{t.doctor?.user?.name ?? "—"}</td>
-                  <td className="px-6 py-3 tabular-nums text-slate-600">{new Date(t.created_at).toLocaleString()}</td>
+                <tr key={t.id} className="border-b border-[var(--border)]/60 transition last:border-0 hover:bg-[var(--primary-tint)]/10">
+                  <td className="px-6 py-3 font-medium text-[var(--ink)]">{t.test_name}</td>
                   <td className="px-6 py-3">
-                    <span className={`rounded-full px-3 py-1 text-xs font-medium capitalize ${pill[t.status]}`}>{t.status.replace("_", " ")}</span>
+                    <div className="font-medium text-[var(--ink)]">{t.patient.first_name} {t.patient.last_name}</div>
+                    <div className="text-xs font-medium text-[var(--primary)]">{t.patient.mrn}</div>
+                  </td>
+                  <td className="px-6 py-3 text-[var(--muted)]">{t.doctor?.user?.name ?? "—"}</td>
+                  <td className="px-6 py-3 tabular-nums text-[var(--muted)]">{new Date(t.created_at).toLocaleString()}</td>
+                  <td className="px-6 py-3">
+                    <span className={`rounded-full px-3 py-1 text-xs font-semibold capitalize ${pill[t.status]}`}>{t.status.replace("_", " ")}</span>
                   </td>
                   <td className="px-6 py-3">
                     <div className="flex justify-end gap-3">
                       {t.status === "ordered" && (
-                        <button onClick={() => setStatus(t, "in_progress")} className="text-xs font-medium text-amber-700 hover:underline">
+                        <button onClick={() => setStatus(t, "in_progress")} className="text-xs font-medium text-amber-700 transition hover:underline">
                           Start
                         </button>
                       )}
                       {t.status === "in_progress" && (
-                        <button onClick={() => setResultFor(t)} className="text-xs font-medium text-blue-600 hover:underline">
+                        <button onClick={() => setResultFor(t)} className="text-xs font-medium text-[var(--primary)] transition hover:underline">
                           Enter result
                         </button>
                       )}
                       {t.status === "completed" && (
-                        <button onClick={() => setViewResult(t)} className="text-xs font-medium text-green-700 hover:underline">
+                        <button onClick={() => setViewResult(t)} className="text-xs font-medium text-emerald-700 transition hover:underline">
                           View result
                         </button>
                       )}
                       {["ordered", "in_progress"].includes(t.status) && (
-                        <button onClick={() => { if (confirm("Cancel this test?")) setStatus(t, "cancelled"); }} className="text-xs font-medium text-red-600 hover:underline">
+                        <button onClick={() => { if (confirm("Cancel this test?")) setStatus(t, "cancelled"); }} className="text-xs font-medium text-red-600 transition hover:underline">
                           Cancel
                         </button>
                       )}
@@ -119,15 +151,15 @@ export default function LabPage() {
 
       {resultFor && <ResultModal test={resultFor} onClose={() => setResultFor(null)} onSave={(r) => setStatus(resultFor, "completed", r)} />}
       {viewResult && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" onClick={() => setViewResult(null)}>
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-lg font-semibold text-slate-900">{viewResult.test_name} — Result</h2>
-            <p className="mt-1 text-xs text-slate-500">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--ink)]/40 p-4 backdrop-blur-sm" onClick={() => setViewResult(null)}>
+          <div className="w-full max-w-md rounded-3xl border border-[var(--border)] bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h2 className="font-heading text-lg font-semibold text-[var(--ink)]">{viewResult.test_name} — Result</h2>
+            <p className="mt-1 text-xs text-[var(--muted)]">
               {viewResult.patient.first_name} {viewResult.patient.last_name} · completed {viewResult.completed_at ? new Date(viewResult.completed_at).toLocaleString() : "—"}
             </p>
-            <div className="mt-4 whitespace-pre-wrap rounded-xl bg-green-50 p-4 text-sm text-slate-800">{viewResult.result ?? "—"}</div>
+            <div className="mt-4 whitespace-pre-wrap rounded-2xl bg-emerald-50 p-4 text-sm text-[var(--ink)]">{viewResult.result ?? "—"}</div>
             <div className="mt-6 flex justify-end">
-              <button onClick={() => setViewResult(null)} className="rounded-full border border-slate-300 px-5 py-2 text-sm text-slate-600 hover:bg-slate-50">Close</button>
+              <button onClick={() => setViewResult(null)} className="rounded-full border border-[var(--border)] px-5 py-2 text-sm font-medium text-[var(--muted)] transition hover:bg-[var(--primary-tint)]/10 hover:text-[var(--ink)]">Close</button>
             </div>
           </div>
         </div>
@@ -140,17 +172,18 @@ function ResultModal({ test, onClose, onSave }: { test: LabTest; onClose: () => 
   const [result, setResult] = useState("");
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" onClick={onClose}>
-      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
-        <h2 className="text-lg font-semibold text-slate-900">Result — {test.test_name}</h2>
-        <p className="mt-1 text-xs text-slate-500">{test.patient.first_name} {test.patient.last_name} · {test.patient.mrn}</p>
-        <textarea rows={6} autoFocus className="mt-4 w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
-          placeholder="e.g. Hemoglobin: 13.5 g/dL (normal)&#10;WBC: 6.2 (normal)…"
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--ink)]/40 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="w-full max-w-md rounded-3xl border border-[var(--border)] bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <h2 className="font-heading text-lg font-semibold text-[var(--ink)]">Result — {test.test_name}</h2>
+        <p className="mt-1 text-xs text-[var(--muted)]">{test.patient.first_name} {test.patient.last_name} · {test.patient.mrn}</p>
+        <textarea rows={6} autoFocus
+          className="mt-4 w-full rounded-xl border border-[var(--border)] bg-white px-4 py-2.5 text-sm text-[var(--ink)] outline-none transition placeholder:text-[var(--muted)]/60 focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--primary-tint)]/30"
+          placeholder={"e.g. Hemoglobin: 13.5 g/dL (normal)\nWBC: 6.2 (normal)…"}
           value={result} onChange={(e) => setResult(e.target.value)} />
         <div className="mt-6 flex justify-end gap-2">
-          <button onClick={onClose} className="rounded-full border border-slate-300 px-5 py-2 text-sm text-slate-600 hover:bg-slate-50">Cancel</button>
+          <button onClick={onClose} className="rounded-full border border-[var(--border)] px-5 py-2 text-sm font-medium text-[var(--muted)] transition hover:bg-[var(--primary-tint)]/10 hover:text-[var(--ink)]">Cancel</button>
           <button onClick={() => onSave(result)} disabled={!result.trim()}
-            className="rounded-full bg-green-600 px-5 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60">
+            className="rounded-full bg-emerald-600 px-5 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60">
             Complete test
           </button>
         </div>

@@ -4,6 +4,9 @@ import { useState, type FormEvent } from "react";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/store/auth";
 
+const inputCls =
+  "w-full rounded-xl border border-[var(--border)] bg-white px-4 py-2.5 text-sm text-[var(--ink)] outline-none transition placeholder:text-[var(--muted)]/60 focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--primary-tint)]/30";
+
 export default function ProfilePage() {
   const user = useAuthStore((state) => state.user);
   const roles = useAuthStore((state) => state.roles);
@@ -32,78 +35,97 @@ export default function ProfilePage() {
     }
   }
 
-  const inputClass = "w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100";
+  const details = [
+    { label: "Name", value: user?.name },
+    { label: "Email", value: user?.email },
+    { label: "Role", value: roles.join(", ") || undefined, capitalize: true },
+    { label: "Specialization", value: user?.staff_profile?.specialization },
+    { label: "Department", value: user?.staff_profile?.department?.name },
+    { label: "Position", value: user?.staff_profile?.position, capitalize: true },
+  ].filter((d) => d.value);
 
   return (
-    <div className="max-w-3xl">
-      <header className="mb-7">
-        <p className="text-sm font-medium text-blue-700">Account</p>
-        <h1 className="mt-1 text-2xl font-semibold text-slate-900">My Profile</h1>
+    <div className="animate-fade-up max-w-3xl">
+      <header className="mb-8">
+        <h1 className="font-heading text-3xl font-bold tracking-tight text-[var(--ink)]">My Profile</h1>
+        <p className="mt-1 text-sm text-[var(--muted)]">Your account details and password.</p>
       </header>
 
-      <section className="border-y border-slate-200 bg-white px-5 py-6 sm:px-7">
-        <h2 className="text-base font-semibold text-slate-900">Profile details</h2>
-        <dl className="mt-5 grid gap-5 sm:grid-cols-2">
-          <div>
-            <dt className="text-xs font-medium uppercase text-slate-500">Name</dt>
-            <dd className="mt-1 text-sm text-slate-900">{user?.name ?? "—"}</dd>
+      {/* Profile card */}
+      <section className="rounded-3xl border border-[var(--border)] bg-white p-6 shadow-sm sm:p-7">
+        <div className="flex items-center gap-4">
+          <div className="flex h-16 w-16 flex-none items-center justify-center rounded-full bg-[var(--primary-tint)]/20 font-heading text-2xl font-bold text-[var(--primary)]">
+            {user?.name?.charAt(0).toUpperCase() ?? "?"}
           </div>
-          <div>
-            <dt className="text-xs font-medium uppercase text-slate-500">Email</dt>
-            <dd className="mt-1 break-all text-sm text-slate-900">{user?.email ?? "—"}</dd>
+          <div className="min-w-0">
+            <h2 className="truncate font-heading text-xl font-semibold text-[var(--ink)]">{user?.name ?? "—"}</h2>
+            <p className="truncate text-sm text-[var(--muted)]">{user?.email ?? "—"}</p>
+            {roles.length > 0 && (
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {roles.map((r) => (
+                  <span key={r} className="rounded-full bg-[var(--primary-tint)]/25 px-3 py-0.5 text-xs font-semibold capitalize text-[var(--primary)]">
+                    {r}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
-          <div>
-            <dt className="text-xs font-medium uppercase text-slate-500">Role</dt>
-            <dd className="mt-1 text-sm capitalize text-slate-900">{roles.join(", ") || "—"}</dd>
-          </div>
-          {user?.staff_profile?.specialization && (
-            <div>
-              <dt className="text-xs font-medium uppercase text-slate-500">Specialization</dt>
-              <dd className="mt-1 text-sm text-slate-900">{user.staff_profile.specialization}</dd>
+        </div>
+
+        <dl className="mt-6 grid gap-5 border-t border-[var(--border)]/60 pt-6 sm:grid-cols-2">
+          {details.slice(1).map((d) => (
+            <div key={d.label}>
+              <dt className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">{d.label}</dt>
+              <dd className={`mt-1 break-all text-sm text-[var(--ink)] ${d.capitalize ? "capitalize" : ""}`}>{d.value}</dd>
             </div>
-          )}
-          {user?.staff_profile?.department && (
-            <div>
-              <dt className="text-xs font-medium uppercase text-slate-500">Department</dt>
-              <dd className="mt-1 text-sm text-slate-900">{user.staff_profile.department.name}</dd>
-            </div>
-          )}
-          {user?.staff_profile?.position && (
-            <div>
-              <dt className="text-xs font-medium uppercase text-slate-500">Position</dt>
-              <dd className="mt-1 text-sm capitalize text-slate-900">{user.staff_profile.position}</dd>
-            </div>
-          )}
+          ))}
         </dl>
       </section>
 
-      <section className="mt-8 border-y border-slate-200 bg-white px-5 py-6 sm:px-7">
-        <div className="mb-5">
-          <h2 className="text-base font-semibold text-slate-900">Change password</h2>
-          <p className="mt-1 text-sm text-slate-500">Other signed-in devices will be logged out after the change.</p>
+      {/* Change password */}
+      <section className="mt-6 rounded-3xl border border-[var(--border)] bg-white p-6 shadow-sm sm:p-7">
+        <div className="mb-5 flex items-center gap-3">
+          <div className="flex h-10 w-10 flex-none items-center justify-center rounded-2xl bg-[var(--primary-tint)]/20 text-[var(--primary)]">
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          </div>
+          <div>
+            <h2 className="font-heading text-lg font-semibold text-[var(--ink)]">Change password</h2>
+            <p className="text-xs text-[var(--muted)]">Other signed-in devices will be logged out after the change.</p>
+          </div>
         </div>
+
         <form onSubmit={submit} className="max-w-xl space-y-4">
           <div>
-            <label htmlFor="current-password" className="mb-1 block text-sm font-medium text-slate-700">Current password</label>
-            <input id="current-password" type="password" autoComplete="current-password" required className={inputClass}
+            <label htmlFor="current-password" className="mb-1 block text-sm font-medium text-[var(--ink)]">Current password</label>
+            <input id="current-password" type="password" autoComplete="current-password" required className={inputCls}
               value={form.current_password} onChange={(event) => setForm({ ...form, current_password: event.target.value })} />
           </div>
           <div>
-            <label htmlFor="new-password" className="mb-1 block text-sm font-medium text-slate-700">New password</label>
-            <input id="new-password" type="password" autoComplete="new-password" minLength={8} required className={inputClass}
+            <label htmlFor="new-password" className="mb-1 block text-sm font-medium text-[var(--ink)]">New password</label>
+            <input id="new-password" type="password" autoComplete="new-password" minLength={8} required className={inputCls}
               value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} />
           </div>
           <div>
-            <label htmlFor="confirm-password" className="mb-1 block text-sm font-medium text-slate-700">Confirm new password</label>
-            <input id="confirm-password" type="password" autoComplete="new-password" minLength={8} required className={inputClass}
+            <label htmlFor="confirm-password" className="mb-1 block text-sm font-medium text-[var(--ink)]">Confirm new password</label>
+            <input id="confirm-password" type="password" autoComplete="new-password" minLength={8} required className={inputCls}
               value={form.password_confirmation} onChange={(event) => setForm({ ...form, password_confirmation: event.target.value })} />
           </div>
 
-          {message && <p role="status" className="text-sm text-green-700">{message}</p>}
-          {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
+          {message && (
+            <div role="status" className="flex items-center gap-2 rounded-xl bg-emerald-50 px-4 py-2.5 text-sm text-emerald-700">
+              <svg viewBox="0 0 24 24" className="h-4 w-4 flex-none" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+              {message}
+            </div>
+          )}
+          {error && (
+            <div role="alert" className="flex items-center gap-2 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-700">
+              <svg viewBox="0 0 24 24" className="h-4 w-4 flex-none" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+              {error}
+            </div>
+          )}
 
           <button type="submit" disabled={saving}
-            className="rounded-full bg-blue-700 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-60">
+            className="rounded-full bg-[var(--primary)] px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md hover:shadow-[var(--primary)]/20 disabled:opacity-60 disabled:hover:translate-y-0">
             {saving ? "Updating…" : "Update password"}
           </button>
         </form>

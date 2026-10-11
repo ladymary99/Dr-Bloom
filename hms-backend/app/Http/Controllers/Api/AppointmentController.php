@@ -16,7 +16,9 @@ class AppointmentController extends Controller
             ->with(['patient:id,mrn,first_name,last_name', 'doctor.user:id,name', 'department:id,name,code'])
             ->when($request->doctor_id, fn($q, $v) => $q->where('doctor_id', $v))
             ->when($request->status, fn($q, $v) => $q->where('status', $v))
-            ->when($request->date, fn($q, $v) => $q->whereDate('appointment_at', $v))
+            ->when($request->date, fn($q, $v) => $q
+                ->where('appointment_at', '>=', Carbon::parse($v)->startOfDay())
+                ->where('appointment_at', '<', Carbon::parse($v)->startOfDay()->addDay()))
             ->orderBy('appointment_at')
             ->paginate(20);
 

@@ -40,6 +40,9 @@ const EMPTY_FORM = {
 
 const bloodTypes = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 
+const inputCls =
+  "w-full rounded-xl border border-[var(--border)] bg-white px-4 py-2.5 text-sm text-[var(--ink)] outline-none transition placeholder:text-[var(--muted)]/60 focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--primary-tint)]/30";
+
 export default function PatientsPage() {
   const hasPermission = useAuthStore((s) => s.hasPermission);
   const canCreate = hasPermission("create patients");
@@ -79,32 +82,32 @@ export default function PatientsPage() {
   }
 
   return (
-    <div>
+    <div className="animate-fade-up">
       {/* Header */}
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Patients</h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <h1 className="font-heading text-3xl font-bold tracking-tight text-[var(--ink)]">Patients</h1>
+          <p className="mt-1 text-sm text-[var(--muted)]">
             {result ? `${result.total} registered patients` : "Loading…"}
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <form onSubmit={onSearch} className="flex gap-2">
             <input
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Search name or MRN…"
-              className="w-56 rounded-full border border-slate-300 bg-white px-4 py-2 text-sm outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
+              className="w-56 rounded-full border border-[var(--border)] bg-white px-4 py-2 text-sm text-[var(--ink)] outline-none transition placeholder:text-[var(--muted)]/60 focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--primary-tint)]/30"
             />
             <button type="submit"
-              className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+              className="rounded-full border border-[var(--border)] bg-white px-4 py-2 text-sm font-medium text-[var(--muted)] shadow-sm transition hover:border-[var(--primary-tint)] hover:text-[var(--primary)]">
               Search
             </button>
           </form>
           {canCreate && (
             <button onClick={() => setEditing("new")}
-              className="rounded-full bg-blue-600 px-5 py-2 text-sm font-medium text-white transition hover:bg-blue-700">
+              className="rounded-full bg-[var(--primary)] px-5 py-2 text-sm font-medium text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md hover:shadow-[var(--primary)]/20">
               + Add patient
             </button>
           )}
@@ -112,60 +115,78 @@ export default function PatientsPage() {
       </div>
 
       {/* Table */}
-      <div className="rounded-2xl border border-slate-200 bg-white">
-        {loading ? (
-          <div className="p-12 text-center text-slate-500">Loading patients…</div>
-        ) : error ? (
-          <div className="p-12 text-center text-red-600">{error}</div>
-        ) : !result?.data.length ? (
-          <div className="p-12 text-center text-slate-500">No patients found.</div>
+      <div className="overflow-hidden rounded-3xl border border-[var(--border)] bg-white shadow-sm">
+        {error ? (
+          <div className="p-12 text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-50">
+              <svg viewBox="0 0 24 24" className="h-5 w-5 text-red-500" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+            </div>
+            <p className="mt-3 text-sm font-medium text-red-600">{error}</p>
+          </div>
+        ) : !loading && !result?.data.length ? (
+          <div className="p-12 text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[var(--primary-tint)]/20">
+              <svg viewBox="0 0 24 24" className="h-5 w-5 text-[var(--primary)]" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            </div>
+            <p className="mt-3 text-sm text-[var(--muted)]">No patients found.</p>
+          </div>
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-100 text-left text-xs text-slate-400">
-                <th className="px-6 py-4 font-medium">MRN</th>
-                <th className="px-6 py-4 font-medium">Name</th>
-                <th className="px-6 py-4 font-medium">Gender</th>
-                <th className="px-6 py-4 font-medium">Age</th>
-                <th className="px-6 py-4 font-medium">Blood</th>
-                <th className="px-6 py-4 font-medium">Phone</th>
+              <tr className="border-b border-[var(--border)] bg-[var(--primary-tint)]/10 text-left text-xs font-semibold text-[var(--muted)]">
+                <th className="px-6 py-4">MRN</th>
+                <th className="px-6 py-4">Name</th>
+                <th className="px-6 py-4">Gender</th>
+                <th className="px-6 py-4">Age</th>
+                <th className="px-6 py-4">Blood</th>
+                <th className="px-6 py-4">Phone</th>
               </tr>
             </thead>
             <tbody>
-              {result.data.map((p) => (
-                <tr
-                  key={p.id}
-                  onClick={() => canEdit && setEditing(p)}
-                  className={`border-b border-slate-50 transition last:border-0 ${canEdit ? "cursor-pointer hover:bg-slate-50" : ""}`}
-                >
-                  <td className="px-6 py-4 font-medium text-blue-700">{p.mrn}</td>
-                  <td className="px-6 py-4 text-slate-900">{p.first_name} {p.last_name}</td>
-                  <td className="px-6 py-4 capitalize text-slate-600">{p.gender}</td>
-                  <td className="px-6 py-4 text-slate-600">{age(p.date_of_birth)}</td>
-                  <td className="px-6 py-4">
-                    {p.blood_type ? (
-                      <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700">{p.blood_type}</span>
-                    ) : (
-                      <span className="text-slate-400">—</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 text-slate-600">{p.phone}</td>
-                </tr>
-              ))}
+              {loading
+                ? Array.from({ length: 6 }).map((_, i) => (
+                    <tr key={i} className="border-b border-[var(--border)]/60 last:border-0">
+                      {Array.from({ length: 6 }).map((_, j) => (
+                        <td key={j} className="px-6 py-4">
+                          <div className="h-4 animate-pulse rounded bg-[var(--primary-tint)]/20" style={{ width: `${55 + ((i * 7 + j * 13) % 35)}%` }} />
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                : result!.data.map((p) => (
+                    <tr
+                      key={p.id}
+                      onClick={() => canEdit && setEditing(p)}
+                      className={`border-b border-[var(--border)]/60 transition last:border-0 ${canEdit ? "cursor-pointer hover:bg-[var(--primary-tint)]/10" : ""}`}
+                    >
+                      <td className="px-6 py-4 font-medium text-[var(--primary)]">{p.mrn}</td>
+                      <td className="px-6 py-4 font-medium text-[var(--ink)]">{p.first_name} {p.last_name}</td>
+                      <td className="px-6 py-4 capitalize text-[var(--muted)]">{p.gender}</td>
+                      <td className="px-6 py-4 tabular-nums text-[var(--muted)]">{age(p.date_of_birth)}</td>
+                      <td className="px-6 py-4">
+                        {p.blood_type ? (
+                          <span className="rounded-full bg-[var(--primary-tint)]/25 px-2.5 py-0.5 text-xs font-semibold text-[var(--primary)]">{p.blood_type}</span>
+                        ) : (
+                          <span className="text-[var(--muted)]/50">—</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 tabular-nums text-[var(--muted)]">{p.phone}</td>
+                    </tr>
+                  ))}
             </tbody>
           </table>
         )}
 
         {result && result.last_page > 1 && (
-          <div className="flex items-center justify-between border-t border-slate-100 px-6 py-4">
-            <span className="text-sm text-slate-500">Page {result.current_page} of {result.last_page}</span>
+          <div className="flex items-center justify-between border-t border-[var(--border)] px-6 py-4">
+            <span className="text-sm tabular-nums text-[var(--muted)]">Page {result.current_page} of {result.last_page}</span>
             <div className="flex gap-2">
               <button disabled={result.current_page === 1} onClick={() => setPage((p) => p - 1)}
-                className="rounded-full border border-slate-300 px-4 py-1.5 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40">
+                className="rounded-full border border-[var(--border)] px-4 py-1.5 text-sm font-medium text-[var(--muted)] transition hover:border-[var(--primary-tint)] hover:text-[var(--primary)] disabled:opacity-40 disabled:hover:border-[var(--border)] disabled:hover:text-[var(--muted)]">
                 ← Previous
               </button>
               <button disabled={result.current_page === result.last_page} onClick={() => setPage((p) => p + 1)}
-                className="rounded-full border border-slate-300 px-4 py-1.5 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40">
+                className="rounded-full border border-[var(--border)] px-4 py-1.5 text-sm font-medium text-[var(--muted)] transition hover:border-[var(--primary-tint)] hover:text-[var(--primary)] disabled:opacity-40 disabled:hover:border-[var(--border)] disabled:hover:text-[var(--muted)]">
                 Next →
               </button>
             </div>
@@ -253,41 +274,39 @@ function PatientModal({
     onSaved();
   }
 
-  const inputCls =
-    "w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100";
   const err = (f: string) =>
     errors[f] ? <p className="mt-1 text-xs text-red-600">{errors[f]}</p> : null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" onClick={onClose}>
-      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--ink)]/40 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-3xl border border-[var(--border)] bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-slate-900">
+          <h2 className="font-heading text-lg font-semibold text-[var(--ink)]">
             {initial ? "Edit patient" : "Register new patient"}
           </h2>
           {initial && (
-            <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">{initial.mrn}</span>
+            <span className="rounded-full bg-[var(--primary-tint)]/25 px-3 py-1 text-xs font-semibold text-[var(--primary)]">{initial.mrn}</span>
           )}
         </div>
 
         <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">First name *</label>
+            <label className="mb-1 block text-sm font-medium text-[var(--ink)]">First name *</label>
             <input className={inputCls} value={form.first_name} onChange={(e) => set("first_name", e.target.value)} />
             {err("first_name")}
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Last name *</label>
+            <label className="mb-1 block text-sm font-medium text-[var(--ink)]">Last name *</label>
             <input className={inputCls} value={form.last_name} onChange={(e) => set("last_name", e.target.value)} />
             {err("last_name")}
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Date of birth *</label>
+            <label className="mb-1 block text-sm font-medium text-[var(--ink)]">Date of birth *</label>
             <input type="date" className={inputCls} value={form.date_of_birth} onChange={(e) => set("date_of_birth", e.target.value)} />
             {err("date_of_birth")}
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Gender *</label>
+            <label className="mb-1 block text-sm font-medium text-[var(--ink)]">Gender *</label>
             <select className={inputCls} value={form.gender} onChange={(e) => set("gender", e.target.value)}>
               <option value="male">Male</option>
               <option value="female">Female</option>
@@ -296,17 +315,17 @@ function PatientModal({
             {err("gender")}
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Phone</label>
+            <label className="mb-1 block text-sm font-medium text-[var(--ink)]">Phone</label>
             <input className={inputCls} value={form.phone} onChange={(e) => set("phone", e.target.value)} placeholder="07XXXXXXXXX" />
             {err("phone")}
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Email</label>
+            <label className="mb-1 block text-sm font-medium text-[var(--ink)]">Email</label>
             <input type="email" className={inputCls} value={form.email} onChange={(e) => set("email", e.target.value)} />
             {err("email")}
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Blood type</label>
+            <label className="mb-1 block text-sm font-medium text-[var(--ink)]">Blood type</label>
             <select className={inputCls} value={form.blood_type} onChange={(e) => set("blood_type", e.target.value)}>
               <option value="">Unknown</option>
               {bloodTypes.map((b) => (
@@ -315,11 +334,11 @@ function PatientModal({
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Allergies</label>
+            <label className="mb-1 block text-sm font-medium text-[var(--ink)]">Allergies</label>
             <input className={inputCls} value={form.allergies} onChange={(e) => set("allergies", e.target.value)} placeholder="e.g. Penicillin" />
           </div>
           <div className="sm:col-span-2">
-            <label className="mb-1 block text-sm font-medium text-slate-700">Address</label>
+            <label className="mb-1 block text-sm font-medium text-[var(--ink)]">Address</label>
             <input className={inputCls} value={form.address} onChange={(e) => set("address", e.target.value)} />
           </div>
         </div>
@@ -339,11 +358,11 @@ function PatientModal({
           </div>
           <div className="flex gap-2">
             <button onClick={onClose}
-              className="rounded-full border border-slate-300 px-5 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">
+              className="rounded-full border border-[var(--border)] px-5 py-2 text-sm font-medium text-[var(--muted)] transition hover:bg-[var(--primary-tint)]/10 hover:text-[var(--ink)]">
               Cancel
             </button>
             <button onClick={submit} disabled={saving}
-              className="rounded-full bg-blue-600 px-5 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-60">
+              className="rounded-full bg-[var(--primary)] px-5 py-2 text-sm font-medium text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md hover:shadow-[var(--primary)]/20 disabled:opacity-60 disabled:hover:translate-y-0">
               {saving ? "Saving…" : initial ? "Save changes" : "Register patient"}
             </button>
           </div>

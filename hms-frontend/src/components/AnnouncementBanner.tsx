@@ -7,6 +7,11 @@ import { api } from "@/lib/api";
 
 type Announcement = { id: number; title: string; body: string };
 
+const iconProps = {
+  fill: "none", stroke: "currentColor", strokeWidth: 1.7,
+  strokeLinecap: "round", strokeLinejoin: "round", viewBox: "0 0 24 24",
+} as const;
+
 export default function AnnouncementBanner() {
   const [items, setItems] = useState<Announcement[]>([]);
   const [dismissed, setDismissed] = useState<number[]>([]);
@@ -32,14 +37,17 @@ export default function AnnouncementBanner() {
   return (
     <div className="mb-6 space-y-2">
       {visible.map((a) => (
-        <div key={a.id} className="flex items-start gap-3 rounded-2xl border border-blue-200 bg-blue-50 px-5 py-3.5">
-          <span className="text-lg">📢</span>
+        <div key={a.id} role="status"
+          className="flex items-start gap-3 rounded-3xl border border-[var(--primary-tint)]/50 bg-[var(--primary-tint)]/20 px-5 py-3.5">
+          <span className="mt-0.5 flex h-8 w-8 flex-none items-center justify-center rounded-full bg-white/60 text-[var(--primary)]">
+            <svg {...iconProps} className="h-4 w-4"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
+          </span>
           <div className="min-w-0 flex-1">
-            <div className="text-sm font-semibold text-slate-900">{a.title}</div>
-            <div className="mt-0.5 text-sm text-slate-600">{a.body}</div>
+            <div className="text-sm font-semibold text-[var(--ink)]">{a.title}</div>
+            <div className="mt-0.5 text-sm text-[var(--muted)]">{a.body}</div>
           </div>
-          <button onClick={() => dismiss(a.id)} className="flex-none text-slate-400 transition hover:text-slate-700" title="Dismiss">
-            ✕
+          <button onClick={() => dismiss(a.id)} className="flex-none rounded-full p-1 text-[var(--muted)]/60 transition hover:bg-white/60 hover:text-[var(--ink)]" title="Dismiss" aria-label="Dismiss announcement">
+            <svg {...iconProps} className="h-4 w-4"><path d="M18 6 6 18M6 6l12 12"/></svg>
           </button>
         </div>
       ))}

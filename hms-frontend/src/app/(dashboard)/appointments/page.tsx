@@ -28,12 +28,12 @@ type Appointment = {
 type Paginated = { data: Appointment[]; current_page: number; last_page: number; total: number };
 
 const statusPill: Record<string, string> = {
-  scheduled: "bg-blue-50 text-blue-700",
-  confirmed: "bg-blue-50 text-blue-700",
-  checked_in: "bg-amber-50 text-amber-700",
-  completed: "bg-green-50 text-green-700",
-  cancelled: "bg-red-50 text-red-600",
-  no_show: "bg-red-50 text-red-600",
+  scheduled: "bg-[var(--primary-tint)]/25 text-[var(--primary)]",
+  confirmed: "bg-[var(--primary-tint)]/25 text-[var(--primary)]",
+  checked_in: "bg-amber-100 text-amber-700",
+  completed: "bg-emerald-100 text-emerald-700",
+  cancelled: "bg-red-100 text-red-600",
+  no_show: "bg-red-100 text-red-600",
 };
 
 function fmt(iso: string) {
@@ -43,6 +43,9 @@ function fmt(iso: string) {
     time: d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
   };
 }
+
+const inputCls =
+  "rounded-xl border border-[var(--border)] bg-white px-4 py-2.5 text-sm text-[var(--ink)] outline-none transition placeholder:text-[var(--muted)]/60 focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--primary-tint)]/30";
 
 export default function AppointmentsPage() {
   const [result, setResult] = useState<Paginated | null>(null);
@@ -86,15 +89,15 @@ export default function AppointmentsPage() {
   }
 
   return (
-    <div>
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+    <div className="animate-fade-up">
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Appointments</h1>
-          <p className="mt-1 text-sm text-slate-500">{result ? `${result.total} appointments` : "Loading…"}</p>
+          <h1 className="font-heading text-3xl font-bold tracking-tight text-[var(--ink)]">Appointments</h1>
+          <p className="mt-1 text-sm text-[var(--muted)]">{result ? `${result.total} appointments` : "Loading…"}</p>
         </div>
         <button
           onClick={() => setShowModal(true)}
-          className="rounded-full bg-blue-600 px-5 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+          className="rounded-full bg-[var(--primary)] px-5 py-2 text-sm font-medium text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md hover:shadow-[var(--primary)]/20"
         >
           + Book appointment
         </button>
@@ -102,16 +105,16 @@ export default function AppointmentsPage() {
 
       {/* Tabs + Filters */}
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <div className="flex gap-1 rounded-full border border-slate-300 bg-white p-1">
+        <div className="flex gap-1 rounded-full border border-[var(--border)] bg-white p-1 shadow-sm">
           <button
             onClick={() => setTabAndDate("today")}
-            className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${tab === "today" ? "bg-blue-600 text-white" : "text-slate-600 hover:bg-slate-100"}`}
+            className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${tab === "today" ? "bg-[var(--primary)] text-white shadow-sm" : "text-[var(--muted)] hover:bg-[var(--primary-tint)]/15 hover:text-[var(--ink)]"}`}
           >
             Today
           </button>
           <button
             onClick={() => setTabAndDate("all")}
-            className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${tab === "all" ? "bg-blue-600 text-white" : "text-slate-600 hover:bg-slate-100"}`}
+            className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${tab === "all" ? "bg-[var(--primary)] text-white shadow-sm" : "text-[var(--muted)] hover:bg-[var(--primary-tint)]/15 hover:text-[var(--ink)]"}`}
           >
             All appointments
           </button>
@@ -120,7 +123,7 @@ export default function AppointmentsPage() {
         <select
           value={status}
           onChange={(e) => { setStatus(e.target.value); setPage(1); }}
-          className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm capitalize outline-none focus:border-blue-600"
+          className="rounded-full border border-[var(--border)] bg-white px-4 py-2 text-sm capitalize text-[var(--ink)] outline-none transition focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--primary-tint)]/30"
         >
           <option value="">All statuses</option>
           {Object.keys(statusPill).map((s) => (
@@ -133,14 +136,14 @@ export default function AppointmentsPage() {
             type="date"
             value={date}
             onChange={(e) => { setDate(e.target.value); setPage(1); }}
-            className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm outline-none focus:border-blue-600"
+            className="rounded-full border border-[var(--border)] bg-white px-4 py-2 text-sm text-[var(--ink)] outline-none transition focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--primary-tint)]/30"
           />
         )}
 
         {(status || (tab === "all" && date)) && (
           <button
             onClick={() => { setStatus(""); setTabAndDate("all"); }}
-            className="rounded-full border border-slate-300 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50"
+            className="rounded-full border border-[var(--border)] bg-white px-4 py-2 text-sm font-medium text-[var(--muted)] shadow-sm transition hover:border-[var(--primary-tint)] hover:text-[var(--primary)]"
           >
             Clear
           </button>
@@ -148,71 +151,89 @@ export default function AppointmentsPage() {
       </div>
 
       {/* Table */}
-      <div className="rounded-2xl border border-slate-200 bg-white">
-        {loading ? (
-          <div className="p-12 text-center text-slate-500">Loading…</div>
-        ) : error ? (
-          <div className="p-12 text-center text-red-600">{error}</div>
-        ) : !result?.data.length ? (
-          <div className="p-12 text-center text-slate-500">No appointments found.</div>
+      <div className="overflow-hidden rounded-3xl border border-[var(--border)] bg-white shadow-sm">
+        {error ? (
+          <div className="p-12 text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-50">
+              <svg viewBox="0 0 24 24" className="h-5 w-5 text-red-500" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+            </div>
+            <p className="mt-3 text-sm font-medium text-red-600">{error}</p>
+          </div>
+        ) : !loading && !result?.data.length ? (
+          <div className="p-12 text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[var(--primary-tint)]/20">
+              <svg viewBox="0 0 24 24" className="h-5 w-5 text-[var(--primary)]" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg>
+            </div>
+            <p className="mt-3 text-sm text-[var(--muted)]">No appointments found.</p>
+          </div>
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-100 text-left text-xs text-slate-400">
-                <th className="px-6 py-4 font-medium">When</th>
-                <th className="px-6 py-4 font-medium">Patient</th>
-                <th className="px-6 py-4 font-medium">Doctor</th>
-                <th className="px-6 py-4 font-medium">Department</th>
-                <th className="px-6 py-4 font-medium">Status</th>
-                <th className="px-6 py-4 font-medium" />
+              <tr className="border-b border-[var(--border)] bg-[var(--primary-tint)]/10 text-left text-xs font-semibold text-[var(--muted)]">
+                <th className="px-6 py-4">When</th>
+                <th className="px-6 py-4">Patient</th>
+                <th className="px-6 py-4">Doctor</th>
+                <th className="px-6 py-4">Department</th>
+                <th className="px-6 py-4">Status</th>
+                <th className="px-6 py-4" />
               </tr>
             </thead>
             <tbody>
-              {result.data.map((a) => {
-                const t = fmt(a.appointment_at);
-                return (
-                  <tr key={a.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50">
-                    <td className="px-6 py-4">
-                      <div className="font-medium tabular-nums text-slate-900">{t.date}</div>
-                      <div className="text-xs text-slate-500">{t.time}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-slate-900">
-                        {a.patient ? `${a.patient.first_name} ${a.patient.last_name}` : "—"}
-                      </div>
-                      <div className="text-xs text-blue-700">{a.patient?.mrn}</div>
-                    </td>
-                    <td className="px-6 py-4 text-slate-600">{a.doctor?.user?.name ?? "—"}</td>
-                    <td className="px-6 py-4 text-slate-600">{a.department?.name ?? "—"}</td>
-                    <td className="px-6 py-4">
-                      <span className={`rounded-full px-3 py-1 text-xs font-medium capitalize ${statusPill[a.status] ?? "bg-slate-100 text-slate-600"}`}>
-                        {a.status.replace("_", " ")}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      {["scheduled", "confirmed"].includes(a.status) && (
-                        <button onClick={() => cancel(a.id)} className="text-xs font-medium text-red-600 hover:underline">
-                          Cancel
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
+              {loading
+                ? Array.from({ length: 5 }).map((_, i) => (
+                    <tr key={i} className="border-b border-[var(--border)]/60 last:border-0">
+                      {Array.from({ length: 6 }).map((_, j) => (
+                        <td key={j} className="px-6 py-4">
+                          <div className="h-4 animate-pulse rounded bg-[var(--primary-tint)]/20" style={{ width: `${50 + ((i * 9 + j * 13) % 40)}%` }} />
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                : result!.data.map((a) => {
+                    const t = fmt(a.appointment_at);
+                    return (
+                      <tr key={a.id} className="border-b border-[var(--border)]/60 transition last:border-0 hover:bg-[var(--primary-tint)]/10">
+                        <td className="px-6 py-4">
+                          <div className="font-medium tabular-nums text-[var(--ink)]">{t.date}</div>
+                          <div className="text-xs tabular-nums text-[var(--muted)]">{t.time}</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="font-medium text-[var(--ink)]">
+                            {a.patient ? `${a.patient.first_name} ${a.patient.last_name}` : "—"}
+                          </div>
+                          <div className="text-xs font-medium text-[var(--primary)]">{a.patient?.mrn}</div>
+                        </td>
+                        <td className="px-6 py-4 text-[var(--muted)]">{a.doctor?.user?.name ?? "—"}</td>
+                        <td className="px-6 py-4 text-[var(--muted)]">{a.department?.name ?? "—"}</td>
+                        <td className="px-6 py-4">
+                          <span className={`rounded-full px-3 py-1 text-xs font-semibold capitalize ${statusPill[a.status] ?? "bg-[var(--primary-tint)]/15 text-[var(--muted)]"}`}>
+                            {a.status.replace("_", " ")}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          {["scheduled", "confirmed"].includes(a.status) && (
+                            <button onClick={() => cancel(a.id)} className="text-xs font-medium text-red-600 transition hover:text-red-700 hover:underline">
+                              Cancel
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
             </tbody>
           </table>
         )}
 
         {result && result.last_page > 1 && (
-          <div className="flex items-center justify-between border-t border-slate-100 px-6 py-4">
-            <span className="text-sm text-slate-500">Page {result.current_page} of {result.last_page}</span>
+          <div className="flex items-center justify-between border-t border-[var(--border)] px-6 py-4">
+            <span className="text-sm tabular-nums text-[var(--muted)]">Page {result.current_page} of {result.last_page}</span>
             <div className="flex gap-2">
               <button disabled={result.current_page === 1} onClick={() => setPage((p) => p - 1)}
-                className="rounded-full border border-slate-300 px-4 py-1.5 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40">
+                className="rounded-full border border-[var(--border)] px-4 py-1.5 text-sm font-medium text-[var(--muted)] transition hover:border-[var(--primary-tint)] hover:text-[var(--primary)] disabled:opacity-40 disabled:hover:border-[var(--border)] disabled:hover:text-[var(--muted)]">
                 ← Previous
               </button>
               <button disabled={result.current_page === result.last_page} onClick={() => setPage((p) => p + 1)}
-                className="rounded-full border border-slate-300 px-4 py-1.5 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40">
+                className="rounded-full border border-[var(--border)] px-4 py-1.5 text-sm font-medium text-[var(--muted)] transition hover:border-[var(--primary-tint)] hover:text-[var(--primary)] disabled:opacity-40 disabled:hover:border-[var(--border)] disabled:hover:text-[var(--muted)]">
                 Next →
               </button>
             </div>
@@ -287,21 +308,21 @@ function BookModal({ onClose, onBooked }: { onClose: () => void; onBooked: () =>
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" onClick={onClose}>
-      <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
-        <h2 className="text-lg font-semibold text-slate-900">Book appointment</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--ink)]/40 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="w-full max-w-lg rounded-3xl border border-[var(--border)] bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <h2 className="font-heading text-lg font-semibold text-[var(--ink)]">Book appointment</h2>
 
         <div className="mt-5 space-y-4">
           {/* Patient search */}
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Patient</label>
+            <label className="mb-1 block text-sm font-medium text-[var(--ink)]">Patient</label>
             {patient ? (
-              <div className="flex items-center justify-between rounded-xl bg-blue-50 px-4 py-2.5 text-sm">
-                <span className="text-slate-900">
+              <div className="flex items-center justify-between rounded-xl bg-[var(--primary-tint)]/15 px-4 py-2.5 text-sm">
+                <span className="text-[var(--ink)]">
                   <b>{patient.first_name} {patient.last_name}</b>{" "}
-                  <span className="text-blue-700">{patient.mrn}</span>
+                  <span className="font-medium text-[var(--primary)]">{patient.mrn}</span>
                 </span>
-                <button onClick={() => setPatient(null)} className="text-slate-500 hover:text-red-600">✕</button>
+                <button onClick={() => setPatient(null)} className="text-[var(--muted)] transition hover:text-red-600">✕</button>
               </div>
             ) : (
               <>
@@ -311,21 +332,22 @@ function BookModal({ onClose, onBooked }: { onClose: () => void; onBooked: () =>
                     onChange={(e) => setQ(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), searchPatients())}
                     placeholder="Search by name or MRN…"
-                    className="flex-1 rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
+                    className={inputCls + " flex-1"}
                   />
-                  <button onClick={searchPatients} className="rounded-full bg-slate-100 px-4 text-sm font-medium text-slate-700 hover:bg-slate-200">
+                  <button onClick={searchPatients} className="rounded-full border border-[var(--border)] bg-white px-4 text-sm font-medium text-[var(--muted)] shadow-sm transition hover:border-[var(--primary-tint)] hover:text-[var(--primary)]">
                     Search
                   </button>
                 </div>
                 {matches.length > 0 && (
-                  <ul className="mt-2 divide-y divide-slate-100 rounded-xl border border-slate-200">
+                  <ul className="mt-2 divide-y divide-[var(--border)]/60 overflow-hidden rounded-xl border border-[var(--border)]">
                     {matches.map((m) => (
                       <li key={m.id}>
                         <button
                           onClick={() => { setPatient(m); setMatches([]); }}
-                          className="w-full px-4 py-2.5 text-left text-sm hover:bg-slate-50"
+                          className="w-full px-4 py-2.5 text-left text-sm transition hover:bg-[var(--primary-tint)]/10"
                         >
-                          {m.first_name} {m.last_name} <span className="text-blue-700">{m.mrn}</span>
+                          <span className="font-medium text-[var(--ink)]">{m.first_name} {m.last_name}</span>{" "}
+                          <span className="text-[var(--primary)]">{m.mrn}</span>
                         </button>
                       </li>
                     ))}
@@ -337,11 +359,11 @@ function BookModal({ onClose, onBooked }: { onClose: () => void; onBooked: () =>
 
           {/* Doctor */}
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Doctor</label>
+            <label className="mb-1 block text-sm font-medium text-[var(--ink)]">Doctor</label>
             <select
               value={doctorId}
               onChange={(e) => setDoctorId(e.target.value)}
-              className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
+              className={inputCls + " w-full"}
             >
               <option value="">Select doctor…</option>
               {doctors.map((d) => (
@@ -354,24 +376,24 @@ function BookModal({ onClose, onBooked }: { onClose: () => void; onBooked: () =>
 
           {/* Date & time */}
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Date & time</label>
+            <label className="mb-1 block text-sm font-medium text-[var(--ink)]">Date & time</label>
             <input
               type="datetime-local"
               min={minDateTime}
               value={when}
               onChange={(e) => setWhen(e.target.value)}
-              className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
+              className={inputCls + " w-full"}
             />
           </div>
 
           {/* Reason */}
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Reason</label>
+            <label className="mb-1 block text-sm font-medium text-[var(--ink)]">Reason</label>
             <input
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder="e.g. Routine checkup"
-              className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
+              className={inputCls + " w-full"}
             />
           </div>
 
@@ -379,13 +401,13 @@ function BookModal({ onClose, onBooked }: { onClose: () => void; onBooked: () =>
         </div>
 
         <div className="mt-6 flex justify-end gap-2">
-          <button onClick={onClose} className="rounded-full border border-slate-300 px-5 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">
+          <button onClick={onClose} className="rounded-full border border-[var(--border)] px-5 py-2 text-sm font-medium text-[var(--muted)] transition hover:bg-[var(--primary-tint)]/10 hover:text-[var(--ink)]">
             Cancel
           </button>
           <button
             onClick={submit}
             disabled={saving}
-            className="rounded-full bg-blue-600 px-5 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-60"
+            className="rounded-full bg-[var(--primary)] px-5 py-2 text-sm font-medium text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md hover:shadow-[var(--primary)]/20 disabled:opacity-60 disabled:hover:translate-y-0"
           >
             {saving ? "Booking…" : "Book appointment"}
           </button>

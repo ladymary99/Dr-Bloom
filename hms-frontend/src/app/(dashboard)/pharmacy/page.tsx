@@ -42,9 +42,15 @@ type InventoryItem = {
 };
 
 const pill: Record<string, string> = {
-  pending: "bg-amber-50 text-amber-700",
-  dispensed: "bg-emerald-50 text-emerald-700",
+  pending: "bg-amber-100 text-amber-700",
+  dispensed: "bg-emerald-100 text-emerald-700",
 };
+
+const cardCls =
+  "rounded-3xl border border-[var(--border)] bg-white p-6 shadow-sm transition-shadow duration-300 hover:shadow-md hover:shadow-[var(--primary)]/5";
+
+const inputCls =
+  "w-full rounded-xl border border-[var(--border)] bg-white px-4 py-2.5 text-sm text-[var(--ink)] outline-none transition placeholder:text-[var(--muted)]/60 focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--primary-tint)]/30";
 
 export default function PharmacyPage() {
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
@@ -138,54 +144,75 @@ export default function PharmacyPage() {
   }
 
   return (
-    <div>
-      <div className="mb-6 flex items-center justify-between">
+    <div className="animate-fade-up">
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Pharmacy</h1>
-          <p className="mt-1 text-sm text-slate-500">Review pending prescriptions, dispense medicines, and record direct sales.</p>
+          <h1 className="font-heading text-3xl font-bold tracking-tight text-[var(--ink)]">Pharmacy</h1>
+          <p className="mt-1 text-sm text-[var(--muted)]">Review pending prescriptions, dispense medicines, and record direct sales.</p>
         </div>
-        <div className="rounded-full bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-700">
-          {lowStock} low-stock items
+        <div className={`rounded-full px-4 py-1.5 text-sm font-semibold ${lowStock > 0 ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"}`}>
+          {lowStock} low-stock {lowStock === 1 ? "item" : "items"}
         </div>
       </div>
 
       {error && (
-        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="mb-4 flex items-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <svg viewBox="0 0 24 24" className="h-4 w-4 flex-none" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
           {error}
         </div>
       )}
 
       <div className="grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
         <div className="space-y-6">
-          <div className="rounded-2xl border border-slate-200 bg-white p-6">
+          <div className={cardCls}>
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-slate-900">Prescription queue</h2>
-              <span className="text-sm text-slate-500">{prescriptions.length} pending</span>
+              <h2 className="font-heading text-lg font-semibold text-[var(--ink)]">Prescription queue</h2>
+              <span className="rounded-full bg-[var(--primary-tint)]/25 px-3 py-0.5 text-xs font-semibold tabular-nums text-[var(--primary)]">
+                {prescriptions.length} pending
+              </span>
             </div>
 
             {loading ? (
-              <div className="p-6 text-center text-slate-500">Loading…</div>
+              <div className="space-y-4">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="rounded-2xl border border-[var(--border)]/60 p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="h-5 w-40 animate-pulse rounded bg-[var(--primary-tint)]/20" />
+                      <div className="h-7 w-24 animate-pulse rounded-full bg-[var(--primary-tint)]/20" />
+                    </div>
+                    <div className="mt-3 space-y-2">
+                      <div className="h-8 animate-pulse rounded-xl bg-[var(--primary-tint)]/15" />
+                      <div className="h-8 w-3/4 animate-pulse rounded-xl bg-[var(--primary-tint)]/15" />
+                    </div>
+                  </div>
+                ))}
+              </div>
             ) : prescriptions.length === 0 ? (
-              <div className="p-6 text-center text-slate-500">No prescriptions waiting.</div>
+              <div className="p-8 text-center">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[var(--primary-tint)]/20">
+                  <svg viewBox="0 0 24 24" className="h-5 w-5 text-[var(--primary)]" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"/><path d="m8.5 8.5 7 7"/></svg>
+                </div>
+                <p className="mt-3 text-sm text-[var(--muted)]">No prescriptions waiting.</p>
+              </div>
             ) : (
               <div className="space-y-4">
                 {prescriptions.map((rx) => (
-                  <div key={rx.id} className="rounded-2xl border border-slate-200 p-4">
+                  <div key={rx.id} className="rounded-2xl border border-[var(--border)]/60 p-4 transition hover:border-[var(--primary-tint)]/60 hover:shadow-sm">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
-                        <h3 className="font-semibold text-slate-900">
+                        <h3 className="font-heading font-semibold text-[var(--ink)]">
                           {rx.visit.patient.first_name} {rx.visit.patient.last_name}
                         </h3>
-                        <p className="text-xs text-blue-700">{rx.visit.patient.mrn}</p>
+                        <p className="text-xs font-medium text-[var(--primary)]">{rx.visit.patient.mrn}</p>
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <span className={`rounded-full px-3 py-1 text-xs font-medium capitalize ${pill[rx.status] ?? "bg-slate-100 text-slate-700"}`}>
+                        <span className={`rounded-full px-3 py-1 text-xs font-semibold capitalize ${pill[rx.status] ?? "bg-[var(--primary-tint)]/15 text-[var(--muted)]"}`}>
                           {rx.status}
                         </span>
                         <button
                           onClick={() => dispense(rx)}
-                          className="rounded-full bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
+                          className="rounded-full bg-[var(--primary)] px-4 py-1.5 text-xs font-medium text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md hover:shadow-[var(--primary)]/20 disabled:opacity-40 disabled:hover:translate-y-0"
                           disabled={rx.status !== "pending"}
                         >
                           Dispense
@@ -193,21 +220,21 @@ export default function PharmacyPage() {
                       </div>
                     </div>
 
-                    <div className="mt-3 grid gap-2 text-sm text-slate-600">
+                    <div className="mt-3 grid gap-2 text-sm">
                       {rx.items.map((item) => (
-                        <div key={item.id} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
-                          <span>
+                        <div key={item.id} className="flex items-center justify-between rounded-xl bg-[var(--primary-tint)]/10 px-3 py-2">
+                          <span className="text-[var(--ink)]">
                             {item.medicine_name} · {item.dosage} · {item.frequency}
                           </span>
-                          <span className="text-xs text-slate-500">{item.duration_days ?? "—"}d</span>
+                          <span className="text-xs tabular-nums text-[var(--muted)]">{item.duration_days ?? "—"}d</span>
                         </div>
                       ))}
                     </div>
 
-                    {rx.notes && <p className="mt-3 text-sm text-slate-600">Note: {rx.notes}</p>}
-                    <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
+                    {rx.notes && <p className="mt-3 text-sm text-[var(--muted)]"><b className="font-medium text-[var(--ink)]">Note:</b> {rx.notes}</p>}
+                    <div className="mt-3 flex items-center justify-between text-xs text-[var(--muted)]">
                       <span>Doctor: {rx.doctor?.user?.name ?? "—"}</span>
-                      <span>{new Date(rx.created_at).toLocaleString()}</span>
+                      <span className="tabular-nums">{new Date(rx.created_at).toLocaleString()}</span>
                     </div>
                   </div>
                 ))}
@@ -217,25 +244,25 @@ export default function PharmacyPage() {
         </div>
 
         <div className="space-y-6">
-          <div className="rounded-2xl border border-slate-200 bg-white p-6">
-            <h2 className="text-lg font-semibold text-slate-900">Direct sale</h2>
+          <div className={cardCls}>
+            <h2 className="font-heading text-lg font-semibold text-[var(--ink)]">Direct sale</h2>
             <div className="mt-4 space-y-4">
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Patient ID</label>
+                <label className="mb-1 block text-sm font-medium text-[var(--ink)]">Patient ID</label>
                 <input
                   value={salePatientId}
                   onChange={(e) => setSalePatientId(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
+                  className={inputCls}
                   placeholder="uuid for patient"
                 />
               </div>
 
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Item</label>
+                <label className="mb-1 block text-sm font-medium text-[var(--ink)]">Item</label>
                 <select
                   value={saleItemId}
                   onChange={(e) => setSaleItemId(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
+                  className={inputCls}
                 >
                   <option value="">Select item</option>
                   {stock.map((item) => (
@@ -248,22 +275,22 @@ export default function PharmacyPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">Qty</label>
+                  <label className="mb-1 block text-sm font-medium text-[var(--ink)]">Qty</label>
                   <input
                     type="number"
                     min={1}
                     value={saleQty}
                     onChange={(e) => setSaleQty(e.target.value)}
-                    className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
+                    className={inputCls}
                   />
                 </div>
 
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">Payment</label>
+                  <label className="mb-1 block text-sm font-medium text-[var(--ink)]">Payment</label>
                   <select
                     value={saleMethod}
                     onChange={(e) => setSaleMethod(e.target.value)}
-                    className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
+                    className={inputCls}
                   >
                     <option value="cash">Cash</option>
                     <option value="card">Card</option>
@@ -273,11 +300,11 @@ export default function PharmacyPage() {
               </div>
 
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Note</label>
+                <label className="mb-1 block text-sm font-medium text-[var(--ink)]">Note</label>
                 <input
                   value={saleNote}
                   onChange={(e) => setSaleNote(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
+                  className={inputCls}
                   placeholder="Optional sale note"
                 />
               </div>
@@ -285,31 +312,31 @@ export default function PharmacyPage() {
               <button
                 onClick={directSale}
                 disabled={saving}
-                className="w-full rounded-full bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
+                className="w-full rounded-full bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md hover:shadow-emerald-600/20 disabled:opacity-60 disabled:hover:translate-y-0"
               >
                 {saving ? "Recording sale…" : "Complete direct sale"}
               </button>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-6">
+          <div className={cardCls}>
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-slate-900">Inventory stock</h2>
-              <span className="text-xs text-slate-500">{stock.length} items</span>
+              <h2 className="font-heading text-lg font-semibold text-[var(--ink)]">Inventory stock</h2>
+              <span className="rounded-full bg-[var(--primary-tint)]/25 px-3 py-0.5 text-xs font-semibold tabular-nums text-[var(--primary)]">{stock.length} items</span>
             </div>
 
             <div className="space-y-2">
               {stock.map((item) => {
                 const low = Number(item.quantity) <= Number(item.min_level);
                 return (
-                  <div key={item.id} className={`rounded-xl border px-3 py-2 ${low ? "border-amber-200 bg-amber-50" : "border-slate-200 bg-slate-50"}`}>
+                  <div key={item.id} className={`rounded-xl border px-3 py-2 transition ${low ? "border-amber-200 bg-amber-50" : "border-[var(--border)]/60 bg-[var(--primary-tint)]/5"}`}>
                     <div className="flex items-center justify-between gap-3">
-                      <span className="font-medium text-slate-800">{item.item_name}</span>
-                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${low ? "bg-amber-200 text-amber-800" : "bg-slate-200 text-slate-700"}`}>
+                      <span className="font-medium text-[var(--ink)]">{item.item_name}</span>
+                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${low ? "bg-amber-200 text-amber-800" : "bg-emerald-100 text-emerald-700"}`}>
                         {low ? "Low" : "OK"}
                       </span>
                     </div>
-                    <div className="mt-1 text-xs text-slate-600">
+                    <div className="mt-1 text-xs tabular-nums text-[var(--muted)]">
                       {item.quantity} {item.unit ?? "units"} · {Number(item.unit_price).toFixed(2)} per unit
                     </div>
                   </div>

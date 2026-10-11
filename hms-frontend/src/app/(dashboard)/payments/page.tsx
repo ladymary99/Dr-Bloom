@@ -35,13 +35,31 @@ type Summary = {
 };
 
 const statusPill: Record<string, string> = {
-  paid: "bg-green-50 text-green-700",
-  pending: "bg-amber-50 text-amber-700",
-  cancelled: "bg-red-50 text-red-600",
+  paid: "bg-emerald-100 text-emerald-700",
+  pending: "bg-amber-100 text-amber-700",
+  cancelled: "bg-red-100 text-red-600",
 };
 
 const money = (v: number | string) =>
   "$" + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+const cardCls =
+  "rounded-3xl border border-[var(--border)] bg-white shadow-sm transition-shadow duration-300 hover:shadow-md hover:shadow-[var(--primary)]/5";
+
+const inputCls =
+  "w-full rounded-xl border border-[var(--border)] bg-white px-4 py-2.5 text-sm text-[var(--ink)] outline-none transition placeholder:text-[var(--muted)]/60 focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--primary-tint)]/30";
+
+const iconProps = {
+  fill: "none", stroke: "currentColor", strokeWidth: 1.7,
+  strokeLinecap: "round", strokeLinejoin: "round", viewBox: "0 0 24 24",
+} as const;
+
+const statIcons = [
+  <svg {...iconProps} key="t" className="h-5 w-5"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M15 9.5c0-1-1.3-1.5-3-1.5s-3 .6-3 1.75c0 2.5 6 1.25 6 3.75 0 1.15-1.3 1.75-3 1.75s-3-.5-3-1.5"/></svg>,
+  <svg {...iconProps} key="w" className="h-5 w-5"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg>,
+  <svg {...iconProps} key="m" className="h-5 w-5"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>,
+  <svg {...iconProps} key="p" className="h-5 w-5"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>,
+];
 
 export default function PaymentsPage() {
   const [result, setResult] = useState<Paginated | null>(null);
@@ -86,22 +104,32 @@ export default function PaymentsPage() {
     URL.revokeObjectURL(url);
   }
 
+  const stats = summary
+    ? [
+        { label: "Total income", value: money(summary.revenue_total), icon: statIcons[0], tint: "text-[var(--primary)]" },
+        { label: "This week", value: money(summary.revenue_week), icon: statIcons[1], tint: "text-[var(--primary)]" },
+        { label: "This month", value: money(summary.revenue_month), icon: statIcons[2], tint: "text-[var(--primary)]" },
+        { label: "Pending", value: `${money(summary.pending_sum)} (${summary.pending_count})`, icon: statIcons[3], tint: "text-amber-600" },
+      ]
+    : [];
+
   return (
-    <div>
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+    <div className="animate-fade-up">
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Income & Payments</h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <h1 className="font-heading text-3xl font-bold tracking-tight text-[var(--ink)]">Income & Payments</h1>
+          <p className="mt-1 text-sm text-[var(--muted)]">
             {result ? `${result.total} invoices` : "Loading…"} · who paid, for what, to which doctor
           </p>
         </div>
         <div className="flex gap-2">
           <button onClick={exportCsv}
-            className="rounded-full border border-slate-300 bg-white px-5 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-            ⬇ Download Excel
+            className="flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-white px-5 py-2 text-sm font-medium text-[var(--muted)] shadow-sm transition hover:border-[var(--primary-tint)] hover:text-[var(--primary)]">
+            <svg {...iconProps} className="h-4 w-4"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5M12 15V3"/></svg>
+            Download Excel
           </button>
           <button onClick={() => setShowModal(true)}
-            className="rounded-full bg-blue-600 px-5 py-2 text-sm font-medium text-white transition hover:bg-blue-700">
+            className="rounded-full bg-[var(--primary)] px-5 py-2 text-sm font-medium text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md hover:shadow-[var(--primary)]/20">
             + Record payment
           </button>
         </div>
@@ -110,16 +138,11 @@ export default function PaymentsPage() {
       {/* Income summary strip */}
       {summary && (
         <div className="mb-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
-          {[
-            { label: "Total income", value: money(summary.revenue_total), icon: "💰" },
-            { label: "This week", value: money(summary.revenue_week), icon: "📅" },
-            { label: "This month", value: money(summary.revenue_month), icon: "🗓️" },
-            { label: "Pending", value: `${money(summary.pending_sum)} (${summary.pending_count})`, icon: "⏳" },
-          ].map((c) => (
-            <div key={c.label} className="rounded-2xl border border-slate-200 bg-white p-5">
-              <div className="text-xl" aria-hidden>{c.icon}</div>
-              <div className="mt-2 text-xl font-semibold tabular-nums text-slate-900">{c.value}</div>
-              <div className="mt-0.5 text-xs text-slate-500">{c.label}</div>
+          {stats.map((c) => (
+            <div key={c.label} className={`${cardCls} !p-5`}>
+              <span className={c.tint} aria-hidden>{c.icon}</span>
+              <div className="mt-2 font-heading text-xl font-bold tabular-nums text-[var(--ink)]">{c.value}</div>
+              <div className="mt-0.5 text-xs text-[var(--muted)]">{c.label}</div>
             </div>
           ))}
         </div>
@@ -135,22 +158,22 @@ export default function PaymentsPage() {
 
       {/* Online vs Reception + filters */}
       {summary && (
-        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4">
-          <span className="text-sm text-slate-500">Income source:</span>
-          <span className="rounded-full bg-blue-50 px-3 py-1 text-sm font-medium text-blue-700">
-            🌐 Online {money(summary.by_source.online)}
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-3xl border border-[var(--border)] bg-white px-5 py-4 shadow-sm">
+          <span className="text-sm text-[var(--muted)]">Income source:</span>
+          <span className="rounded-full bg-[var(--primary-tint)]/25 px-3 py-1 text-sm font-semibold text-[var(--primary)]">
+            Online {money(summary.by_source.online)}
           </span>
-          <span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-700">
-            🏥 Reception {money(summary.by_source.reception)}
+          <span className="rounded-full bg-[var(--primary-tint)]/10 px-3 py-1 text-sm font-semibold text-[var(--muted)]">
+            Reception {money(summary.by_source.reception)}
           </span>
           <div className="ml-auto flex gap-3">
             <select value={deptId} onChange={(e) => { setDeptId(e.target.value); setPage(1); }}
-              className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm outline-none focus:border-blue-600">
+              className="rounded-full border border-[var(--border)] bg-white px-4 py-2 text-sm text-[var(--ink)] outline-none transition focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--primary-tint)]/30">
               <option value="">All departments</option>
               {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
             </select>
             <select value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }}
-              className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm capitalize outline-none focus:border-blue-600">
+              className="rounded-full border border-[var(--border)] bg-white px-4 py-2 text-sm capitalize text-[var(--ink)] outline-none transition focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--primary-tint)]/30">
               <option value="">All statuses</option>
               <option value="pending">Pending</option>
               <option value="paid">Paid</option>
@@ -161,49 +184,79 @@ export default function PaymentsPage() {
       )}
 
       {/* Table */}
-      <div className="rounded-2xl border border-slate-200 bg-white">
+      <div className="overflow-hidden rounded-3xl border border-[var(--border)] bg-white shadow-sm">
         {loading ? (
-          <div className="p-12 text-center text-slate-500">Loading…</div>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-[var(--border)] bg-[var(--primary-tint)]/10 text-left text-xs font-semibold text-[var(--muted)]">
+                <th className="px-6 py-4">Invoice</th>
+                <th className="px-6 py-4">Patient</th>
+                <th className="px-6 py-4">Doctor</th>
+                <th className="px-6 py-4">Department</th>
+                <th className="px-6 py-4">Description</th>
+                <th className="px-6 py-4 text-right">Amount</th>
+                <th className="px-6 py-4">Paid via</th>
+                <th className="px-6 py-4">Status</th>
+                <th className="px-6 py-4" />
+              </tr>
+            </thead>
+            <tbody>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <tr key={i} className="border-b border-[var(--border)]/60 last:border-0">
+                  {Array.from({ length: 9 }).map((_, j) => (
+                    <td key={j} className="px-6 py-4">
+                      <div className="h-4 animate-pulse rounded bg-[var(--primary-tint)]/20" style={{ width: `${45 + ((i * 7 + j * 11) % 40)}%` }} />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         ) : !result?.data.length ? (
-          <div className="p-12 text-center text-slate-500">No invoices found.</div>
+          <div className="p-12 text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[var(--primary-tint)]/20">
+              <svg {...iconProps} className="h-5 w-5 text-[var(--primary)]"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
+            </div>
+            <p className="mt-3 text-sm text-[var(--muted)]">No invoices found.</p>
+          </div>
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-100 text-left text-xs text-slate-400">
-                <th className="px-6 py-4 font-medium">Invoice</th>
-                <th className="px-6 py-4 font-medium">Patient</th>
-                <th className="px-6 py-4 font-medium">Doctor</th>
-                <th className="px-6 py-4 font-medium">Department</th>
-                <th className="px-6 py-4 font-medium">Description</th>
-                <th className="px-6 py-4 font-medium text-right">Amount</th>
-                <th className="px-6 py-4 font-medium">Paid via</th>
-                <th className="px-6 py-4 font-medium">Status</th>
-                <th className="px-6 py-4 font-medium" />
+              <tr className="border-b border-[var(--border)] bg-[var(--primary-tint)]/10 text-left text-xs font-semibold text-[var(--muted)]">
+                <th className="px-6 py-4">Invoice</th>
+                <th className="px-6 py-4">Patient</th>
+                <th className="px-6 py-4">Doctor</th>
+                <th className="px-6 py-4">Department</th>
+                <th className="px-6 py-4">Description</th>
+                <th className="px-6 py-4 text-right">Amount</th>
+                <th className="px-6 py-4">Paid via</th>
+                <th className="px-6 py-4">Status</th>
+                <th className="px-6 py-4" />
               </tr>
             </thead>
             <tbody>
               {result.data.map((inv) => (
-                <tr key={inv.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50">
+                <tr key={inv.id} className="border-b border-[var(--border)]/60 transition last:border-0 hover:bg-[var(--primary-tint)]/10">
                   <td className="px-6 py-4">
-                    <div className="font-medium text-blue-700">{inv.invoice_number}</div>
-                    <div className="text-xs text-slate-400">{new Date(inv.created_at).toLocaleDateString()}</div>
+                    <div className="font-medium text-[var(--primary)]">{inv.invoice_number}</div>
+                    <div className="text-xs tabular-nums text-[var(--muted)]">{new Date(inv.created_at).toLocaleDateString()}</div>
                   </td>
-                  <td className="px-6 py-4 text-slate-900">
-                    {inv.patient ? `${inv.patient.first_name} ${inv.patient.last_name}` : "—"}
-                    <div className="text-xs text-slate-400">{inv.patient?.mrn}</div>
-                  </td>
-                  <td className="px-6 py-4 text-slate-600">{inv.doctor?.user?.name ?? "—"}</td>
-                  <td className="px-6 py-4 text-slate-600">{inv.department?.name ?? "—"}</td>
-                  <td className="px-6 py-4 text-slate-600">{inv.description}</td>
-                  <td className="px-6 py-4 text-right font-medium tabular-nums text-slate-900">{money(inv.amount)}</td>
                   <td className="px-6 py-4">
-                    <div className="text-xs text-slate-600 capitalize">{inv.payment_method ?? "—"}</div>
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${inv.source === "online" ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-600"}`}>
-                      {inv.source === "online" ? "🌐 Online" : "🏥 Reception"}
+                    <div className="font-medium text-[var(--ink)]">{inv.patient ? `${inv.patient.first_name} ${inv.patient.last_name}` : "—"}</div>
+                    <div className="text-xs text-[var(--muted)]">{inv.patient?.mrn}</div>
+                  </td>
+                  <td className="px-6 py-4 text-[var(--muted)]">{inv.doctor?.user?.name ?? "—"}</td>
+                  <td className="px-6 py-4 text-[var(--muted)]">{inv.department?.name ?? "—"}</td>
+                  <td className="px-6 py-4 text-[var(--muted)]">{inv.description}</td>
+                  <td className="px-6 py-4 text-right font-semibold tabular-nums text-[var(--ink)]">{money(inv.amount)}</td>
+                  <td className="px-6 py-4">
+                    <div className="text-xs capitalize text-[var(--muted)]">{inv.payment_method ?? "—"}</div>
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${inv.source === "online" ? "bg-[var(--primary-tint)]/25 text-[var(--primary)]" : "bg-[var(--primary-tint)]/10 text-[var(--muted)]"}`}>
+                      {inv.source === "online" ? "Online" : "Reception"}
                     </span>
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`rounded-full px-3 py-1 text-xs font-medium capitalize ${statusPill[inv.status]}`}>{inv.status}</span>
+                    <span className={`rounded-full px-3 py-1 text-xs font-semibold capitalize ${statusPill[inv.status]}`}>{inv.status}</span>
                   </td>
                   <td className="px-6 py-4 text-right">
                     {inv.status === "pending" && <MarkPaid id={inv.id} onDone={() => { load(page, deptId, status); loadSummary(); }} />}
@@ -215,13 +268,13 @@ export default function PaymentsPage() {
         )}
 
         {result && result.last_page > 1 && (
-          <div className="flex items-center justify-between border-t border-slate-100 px-6 py-4">
-            <span className="text-sm text-slate-500">Page {result.current_page} of {result.last_page}</span>
+          <div className="flex items-center justify-between border-t border-[var(--border)] px-6 py-4">
+            <span className="text-sm tabular-nums text-[var(--muted)]">Page {result.current_page} of {result.last_page}</span>
             <div className="flex gap-2">
               <button disabled={result.current_page === 1} onClick={() => setPage((p) => p - 1)}
-                className="rounded-full border border-slate-300 px-4 py-1.5 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40">← Previous</button>
+                className="rounded-full border border-[var(--border)] px-4 py-1.5 text-sm font-medium text-[var(--muted)] transition hover:border-[var(--primary-tint)] hover:text-[var(--primary)] disabled:opacity-40 disabled:hover:border-[var(--border)] disabled:hover:text-[var(--muted)]">← Previous</button>
               <button disabled={result.current_page === result.last_page} onClick={() => setPage((p) => p + 1)}
-                className="rounded-full border border-slate-300 px-4 py-1.5 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40">Next →</button>
+                className="rounded-full border border-[var(--border)] px-4 py-1.5 text-sm font-medium text-[var(--muted)] transition hover:border-[var(--primary-tint)] hover:text-[var(--primary)] disabled:opacity-40 disabled:hover:border-[var(--border)] disabled:hover:text-[var(--muted)]">Next →</button>
             </div>
           </div>
         )}
@@ -243,16 +296,19 @@ export default function PaymentsPage() {
 function BarChart({ title, data }: { title: string; data: { label: string; total: number }[] }) {
   const max = Math.max(...data.map((d) => d.total), 1);
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6">
-      <h2 className="font-semibold text-slate-900">{title}</h2>
+    <div className={`${cardCls} !p-6`}>
+      <h2 className="font-heading font-semibold text-[var(--ink)]">{title}</h2>
       <div className="mt-4 flex h-32 items-end gap-2">
         {data.map((d, i) => (
           <div key={i} className="flex flex-1 flex-col items-center gap-1.5" title={`$${d.total.toFixed(2)}`}>
-            <span className="text-[10px] tabular-nums text-slate-400">
+            <span className="text-[10px] tabular-nums text-[var(--muted)]">
               {d.total > 0 ? "$" + Math.round(d.total) : ""}
             </span>
-            <div className="w-full rounded-t-md bg-blue-600 transition-all" style={{ height: `${Math.max((d.total / max) * 100, 2)}%` }} />
-            <span className="text-[10px] text-slate-400">{d.label}</span>
+            <div
+              className="w-full rounded-t-lg bg-[var(--primary)]/80 transition-all duration-500 hover:bg-[var(--primary)]"
+              style={{ height: `${Math.max((d.total / max) * 100, 2)}%` }}
+            />
+            <span className="text-[10px] text-[var(--muted)]">{d.label}</span>
           </div>
         ))}
       </div>
@@ -275,13 +331,13 @@ function MarkPaid({ id, onDone }: { id: number; onDone: () => void }) {
   return (
     <div className="flex items-center justify-end gap-2">
       <select value={method} onChange={(e) => setMethod(e.target.value)}
-        className="rounded-full border border-slate-300 px-2 py-1 text-xs outline-none">
+        className="rounded-full border border-[var(--border)] bg-white px-2 py-1 text-xs text-[var(--ink)] outline-none transition focus:border-[var(--primary)]">
         <option value="cash">Cash</option>
         <option value="card">Card</option>
         <option value="transfer">Transfer</option>
       </select>
       <button onClick={go} disabled={busy}
-        className="rounded-full bg-green-600 px-3 py-1 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-60">
+        className="rounded-full bg-emerald-600 px-3 py-1 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60">
         {busy ? "…" : "Mark paid"}
       </button>
     </div>
@@ -304,8 +360,6 @@ function RecordPaymentModal({ departments, onClose, onSaved }: { departments: De
   const [source, setSource] = useState("reception");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
-
-  const inputCls = "w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100";
 
   useEffect(() => {
     api.get("/lookups/doctors").then((r) => setDoctors(r.data)).catch(() => {});
@@ -343,18 +397,18 @@ function RecordPaymentModal({ departments, onClose, onSaved }: { departments: De
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" onClick={onClose}>
-      <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
-        <h2 className="text-lg font-semibold text-slate-900">Record payment</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--ink)]/40 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl border border-[var(--border)] bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <h2 className="font-heading text-lg font-semibold text-[var(--ink)]">Record payment</h2>
 
         <div className="mt-5 space-y-4">
           {/* Patient (optional) */}
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Patient <span className="text-slate-400">(optional)</span></label>
+            <label className="mb-1 block text-sm font-medium text-[var(--ink)]">Patient <span className="font-normal text-[var(--muted)]">(optional)</span></label>
             {patient ? (
-              <div className="flex items-center justify-between rounded-xl bg-blue-50 px-4 py-2.5 text-sm">
-                <span><b>{patient.first_name} {patient.last_name}</b> <span className="text-blue-700">{patient.mrn}</span></span>
-                <button onClick={() => setPatient(null)} className="text-slate-500 hover:text-red-600">✕</button>
+              <div className="flex items-center justify-between rounded-xl bg-[var(--primary-tint)]/15 px-4 py-2.5 text-sm">
+                <span className="text-[var(--ink)]"><b>{patient.first_name} {patient.last_name}</b> <span className="font-medium text-[var(--primary)]">{patient.mrn}</span></span>
+                <button onClick={() => setPatient(null)} className="text-[var(--muted)] transition hover:text-red-600">✕</button>
               </div>
             ) : (
               <>
@@ -362,14 +416,15 @@ function RecordPaymentModal({ departments, onClose, onSaved }: { departments: De
                   <input value={q} onChange={(e) => setQ(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), searchPatients())}
                     placeholder="Search name or MRN…" className={inputCls} />
-                  <button onClick={searchPatients} className="rounded-full bg-slate-100 px-4 text-sm font-medium text-slate-700 hover:bg-slate-200">Search</button>
+                  <button onClick={searchPatients} className="rounded-full border border-[var(--border)] bg-white px-4 text-sm font-medium text-[var(--muted)] shadow-sm transition hover:border-[var(--primary-tint)] hover:text-[var(--primary)]">Search</button>
                 </div>
                 {matches.length > 0 && (
-                  <ul className="mt-2 divide-y divide-slate-100 rounded-xl border border-slate-200">
+                  <ul className="mt-2 divide-y divide-[var(--border)]/60 overflow-hidden rounded-xl border border-[var(--border)]">
                     {matches.map((m) => (
                       <li key={m.id}>
-                        <button onClick={() => { setPatient(m); setMatches([]); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-slate-50">
-                          {m.first_name} {m.last_name} <span className="text-blue-700">{m.mrn}</span>
+                        <button onClick={() => { setPatient(m); setMatches([]); }} className="w-full px-4 py-2.5 text-left text-sm transition hover:bg-[var(--primary-tint)]/10">
+                          <span className="font-medium text-[var(--ink)]">{m.first_name} {m.last_name}</span>{" "}
+                          <span className="text-[var(--primary)]">{m.mrn}</span>
                         </button>
                       </li>
                     ))}
@@ -382,14 +437,14 @@ function RecordPaymentModal({ departments, onClose, onSaved }: { departments: De
           {/* Department + Doctor */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Department</label>
+              <label className="mb-1 block text-sm font-medium text-[var(--ink)]">Department</label>
               <select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} className={inputCls}>
                 <option value="">None</option>
                 {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Doctor</label>
+              <label className="mb-1 block text-sm font-medium text-[var(--ink)]">Doctor</label>
               <select value={doctorId} onChange={(e) => setDoctorId(e.target.value)} className={inputCls}>
                 <option value="">None</option>
                 {doctors.map((d) => (
@@ -402,24 +457,24 @@ function RecordPaymentModal({ departments, onClose, onSaved }: { departments: De
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Description *</label>
+            <label className="mb-1 block text-sm font-medium text-[var(--ink)]">Description *</label>
             <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="e.g. Consultation fee" className={inputCls} />
           </div>
 
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Amount *</label>
+              <label className="mb-1 block text-sm font-medium text-[var(--ink)]">Amount *</label>
               <input type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} className={inputCls} />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Status</label>
+              <label className="mb-1 block text-sm font-medium text-[var(--ink)]">Status</label>
               <select value={status} onChange={(e) => setStatus(e.target.value)} className={inputCls}>
                 <option value="paid">Paid</option>
                 <option value="pending">Pending</option>
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Source</label>
+              <label className="mb-1 block text-sm font-medium text-[var(--ink)]">Source</label>
               <select value={source} onChange={(e) => setSource(e.target.value)} className={inputCls}>
                 <option value="reception">Reception desk</option>
                 <option value="online">Online booking</option>
@@ -429,7 +484,7 @@ function RecordPaymentModal({ departments, onClose, onSaved }: { departments: De
 
           {status === "paid" && (
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Payment method</label>
+              <label className="mb-1 block text-sm font-medium text-[var(--ink)]">Payment method</label>
               <select value={method} onChange={(e) => setMethod(e.target.value)} className={inputCls}>
                 <option value="cash">Cash</option>
                 <option value="card">Card</option>
@@ -442,9 +497,9 @@ function RecordPaymentModal({ departments, onClose, onSaved }: { departments: De
         </div>
 
         <div className="mt-6 flex justify-end gap-2">
-          <button onClick={onClose} className="rounded-full border border-slate-300 px-5 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">Cancel</button>
+          <button onClick={onClose} className="rounded-full border border-[var(--border)] px-5 py-2 text-sm font-medium text-[var(--muted)] transition hover:bg-[var(--primary-tint)]/10 hover:text-[var(--ink)]">Cancel</button>
           <button onClick={submit} disabled={saving}
-            className="rounded-full bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60">
+            className="rounded-full bg-[var(--primary)] px-5 py-2 text-sm font-medium text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md hover:shadow-[var(--primary)]/20 disabled:opacity-60 disabled:hover:translate-y-0">
             {saving ? "Saving…" : "Record payment"}
           </button>
         </div>
