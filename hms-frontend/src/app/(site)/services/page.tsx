@@ -54,7 +54,7 @@ export default function ServicesPage() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    api.get("/departments").then((r) => setDepts(r.data)).catch(() => {});
+    api.get("/departments").then((r) => setDepts(Array.isArray(r.data) ? r.data : [])).catch(() => {});
   }, []);
 
   useEffect(() => {

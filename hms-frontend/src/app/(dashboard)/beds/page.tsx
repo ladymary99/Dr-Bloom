@@ -22,7 +22,7 @@ type WardInfo = {
 
 type Inpatient = {
   id: number; admitted_at: string; diagnosis: string | null;
-  patient: { mrn: string; first_name: string; last_name: string };
+  patient: { mrn: string; first_name: string; last_name: string } | null;
   bed: { bed_number: string; ward: { name: string } };
   doctor: { user: { name: string } } | null;
 };
@@ -265,8 +265,8 @@ export default function BedsPage() {
               {inpatients.map((a) => (
                 <tr key={a.id} className="border-b border-[var(--border)]/60 transition last:border-0 hover:bg-[var(--primary-tint)]/10">
                   <td className="px-6 py-3">
-                    <div className="font-medium text-[var(--ink)]">{a.patient.first_name} {a.patient.last_name}</div>
-                    <div className="text-xs font-medium text-[var(--primary)]">{a.patient.mrn}</div>
+                    <div className="font-medium text-[var(--ink)]">{a.patient ? `${a.patient.first_name} ${a.patient.last_name}` : "—"}</div>
+                    <div className="text-xs font-medium text-[var(--primary)]">{a.patient?.mrn ?? "—"}</div>
                   </td>
                   <td className="px-6 py-3 text-[var(--muted)]">{a.bed.ward.name} · #{a.bed.bed_number}</td>
                   <td className="px-6 py-3 text-[var(--muted)]">{a.doctor?.user?.name ?? "—"}</td>
