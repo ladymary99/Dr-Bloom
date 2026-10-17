@@ -106,7 +106,10 @@ export default function DashboardPage() {
 
   useEffect(() => {
     api.get("/settings").then((response) => setAnnouncement(response.data.announcement ?? "")).catch(() => {});
-    api.get("/dashboard/stats").then((response) => setStats(response.data)).catch(() => {});
+    api.get("/dashboard/stats").then((response) => setStats({
+      ...response.data,
+      upcoming: Array.isArray(response.data.upcoming) ? response.data.upcoming : [],
+    })).catch(() => {});
 
     const now = new Date();
     const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;

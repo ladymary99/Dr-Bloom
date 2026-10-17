@@ -42,6 +42,8 @@ const contactItems = (info: Info | null) => [
 export default function ContactPage() {
   const [info, setInfo] = useState<Info | null>(null);
   const [sent, setSent] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState({ name: "", email: "", message: "" });
   const ref = useRef<HTMLElement>(null);
   const [visible, setVisible] = useState(false);
@@ -130,7 +132,19 @@ export default function ContactPage() {
             ) : (
               <form
                 className="mt-6 space-y-4"
-                onSubmit={(e) => { e.preventDefault(); setSent(true); }}
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  setSending(true);
+                  setError(null);
+                  try {
+                    await api.post("/contact", form);
+                    setSent(true);
+                  } catch {
+                    setError("Something went wrong. Please try again or call us.");
+                  } finally {
+                    setSending(false);
+                  }
+                }}
               >
                 <input
                   required
@@ -155,13 +169,15 @@ export default function ContactPage() {
                   value={form.message}
                   onChange={(e) => setForm({ ...form, message: e.target.value })}
                 />
+                {error && <p className="text-sm text-red-600">{error}</p>}
                 <button
                   type="submit"
-                  className="btn-roll w-full rounded-full bg-[var(--primary)] py-3 text-xs font-bold uppercase tracking-[0.2em] text-white transition hover:bg-[var(--primary)]/85"
+                  disabled={sending}
+                  className="btn-roll w-full rounded-full bg-[var(--primary)] py-3 text-xs font-bold uppercase tracking-[0.2em] text-white transition hover:bg-[var(--primary)]/85 disabled:opacity-60"
                 >
                   <span className="roll">
-                    <span className="r1">Send message</span>
-                    <span className="r2" aria-hidden="true">Send message</span>
+                    <span className="r1">{sending ? "Sending…" : "Send message"}</span>
+                    <span className="r2" aria-hidden="true">{sending ? "Sending…" : "Send message"}</span>
                   </span>
                 </button>
               </form>

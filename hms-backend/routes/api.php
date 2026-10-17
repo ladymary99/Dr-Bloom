@@ -25,17 +25,25 @@ use App\Http\Controllers\Api\PortalController;
 use App\Http\Controllers\Api\LabTestController;
 use App\Http\Controllers\Api\PharmacyController;
 use App\Http\Controllers\Api\PublicController;
+use App\Http\Controllers\ContactController;
    
 
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1'); // 5 tries/minute
 Route::post('/register/patient', [AuthController::class, 'registerPatient'])->middleware('throttle:5,1');
 Route::post('/patient/register', [AuthController::class, 'registerPatient'])->middleware('throttle:10,1');
+Route::post('/contact', [ContactController::class, 'store']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/public/info', [PublicController::class, 'info']);
 Route::get('/public/doctors', [PublicController::class, 'doctors']);
+
+    Route::prefix('admin')->middleware('admin')->group(function () {
+        Route::get('/contacts', [ContactController::class, 'index']);
+        Route::patch('/contacts/{contact}/read', [ContactController::class, 'markRead']);
+        Route::delete('/contacts/{contact}', [ContactController::class, 'destroy']);
+    });
 
      Route::get('/admin/audit-logs', [AuditLogController::class, 'index'])->middleware('permission:view audit logs');
 

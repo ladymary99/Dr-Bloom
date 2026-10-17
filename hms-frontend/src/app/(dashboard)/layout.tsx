@@ -26,6 +26,7 @@ const navItems: NavItem[] = [
 const adminItems: NavItem[] = [
   { href: "/reports", label: "Reports", icon: "reports", perm: "manage payments" },
   { href: "/announcements", label: "Announcements", icon: "announcements", role: "admin" },
+  { href: "/admin/contacts", label: "Contacts", icon: "mail", role: "admin" },
   { href: "/admin/users", label: "Users & Access", icon: "users", perm: "manage users" },
   { href: "/admin/audit-logs", label: "Audit Logs", icon: "audit", perm: "view audit logs" },
 ];

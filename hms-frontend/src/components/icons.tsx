@@ -3,7 +3,7 @@ import React from "react";
 export type IconName =
   | "dashboard" | "patients" | "appointments" | "queue" | "beds" | "lab"
   | "pharmacy" | "departments" | "payments" | "reports" | "announcements"
-  | "users" | "audit" | "settings" | "dots" | "logout" | "profile" | "plus" | "briefcase";
+  | "users" | "audit" | "mail" | "settings" | "dots" | "logout" | "profile" | "plus" | "briefcase";
 
 function Svg({ children, size = 18 }: { children: React.ReactNode; size?: number }) {
   return (
@@ -42,6 +42,8 @@ export default function Icon({ name, size = 18 }: { name: IconName; size?: numbe
       return <Svg size={size}><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /></Svg>;
     case "audit":
       return <Svg size={size}><path d="m3 17 2 2 4-4" /><path d="m3 7 2 2 4-4" /><path d="M13 6h8M13 12h8M13 18h8" /></Svg>;
+    case "mail":
+      return <Svg size={size}><rect x="2" y="4" width="20" height="16" rx="2" /><path d="m22 7-10 6L2 7" /></Svg>;
     case "settings":
       return <Svg size={size}><path d="M4 21v-7" /><path d="M4 10V3" /><path d="M12 21v-9" /><path d="M12 8V3" /><path d="M20 21v-5" /><path d="M20 12V3" /><path d="M2 14h4" /><path d="M10 8h4" /><path d="M18 16h4" /></Svg>;
     case "dots":
