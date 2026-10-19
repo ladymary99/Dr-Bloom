@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useSyncExternalStore } from "react";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/store/auth";
+import ProfileAvatar from "@/components/ProfileAvatar";
 
 const navItems = [
   { href: "/portal", label: "Overview", icon: "⌂" },
@@ -51,6 +52,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
           </Link>
           <div className="flex flex-none items-center gap-3">
             <span className="hidden max-w-40 truncate text-sm text-slate-500 sm:block">{user?.name}</span>
+            <ProfileAvatar name={user?.name ?? "Profile"} className="h-9 w-9 rounded-full bg-blue-50 text-sm font-semibold text-blue-700" />
             <button type="button" onClick={logout} className="rounded-full border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50">
               Sign out
             </button>

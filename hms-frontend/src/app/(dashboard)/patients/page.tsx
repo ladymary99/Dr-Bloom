@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/store/auth";
+import PatientFiles from "@/components/PatientFiles";
 
 type Patient = {
   id: string;
@@ -47,6 +48,8 @@ export default function PatientsPage() {
   const hasPermission = useAuthStore((s) => s.hasPermission);
   const canCreate = hasPermission("create patients");
   const canEdit = hasPermission("update patients");
+  const roles = useAuthStore((s) => s.roles);
+  const canManagePatientFiles = roles.includes("admin") || roles.includes("doctor");
 
   const [result, setResult] = useState<Paginated | null>(null);
   const [page, setPage] = useState(1);
@@ -156,8 +159,8 @@ export default function PatientsPage() {
                 : result!.data.map((p) => (
                     <tr
                       key={p.id}
-                      onClick={() => canEdit && setEditing(p)}
-                      className={`border-b border-[var(--border)]/60 transition last:border-0 ${canEdit ? "cursor-pointer hover:bg-[var(--primary-tint)]/10" : ""}`}
+                      onClick={() => setEditing(p)}
+                      className="cursor-pointer border-b border-[var(--border)]/60 transition last:border-0 hover:bg-[var(--primary-tint)]/10"
                     >
                       <td className="px-6 py-4 font-medium text-[var(--primary)]">{p.mrn}</td>
                       <td className="px-6 py-4 font-medium text-[var(--ink)]">{p.first_name} {p.last_name}</td>
@@ -199,6 +202,8 @@ export default function PatientsPage() {
         <PatientModal
           key={editing === "new" ? "new" : editing.id}
           initial={editing === "new" ? null : editing}
+          canEdit={editing === "new" || canEdit}
+          canManagePatientFiles={canManagePatientFiles}
           onClose={() => setEditing(null)}
           onSaved={() => { setEditing(null); load(page, search); }}
         />
@@ -211,10 +216,14 @@ export default function PatientsPage() {
 
 function PatientModal({
   initial,
+  canEdit,
+  canManagePatientFiles,
   onClose,
   onSaved,
 }: {
   initial: Patient | null;
+  canEdit: boolean;
+  canManagePatientFiles: boolean;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -282,7 +291,7 @@ function PatientModal({
       <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-3xl border border-[var(--border)] bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h2 className="font-heading text-lg font-semibold text-[var(--ink)]">
-            {initial ? "Edit patient" : "Register new patient"}
+            {initial ? (canEdit ? "Edit patient" : "Patient record") : "Register new patient"}
           </h2>
           {initial && (
             <span className="rounded-full bg-[var(--primary-tint)]/25 px-3 py-1 text-xs font-semibold text-[var(--primary)]">{initial.mrn}</span>
@@ -292,22 +301,22 @@ function PatientModal({
         <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label className="mb-1 block text-sm font-medium text-[var(--ink)]">First name *</label>
-            <input className={inputCls} value={form.first_name} onChange={(e) => set("first_name", e.target.value)} />
+            <input disabled={!canEdit} className={inputCls} value={form.first_name} onChange={(e) => set("first_name", e.target.value)} />
             {err("first_name")}
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-[var(--ink)]">Last name *</label>
-            <input className={inputCls} value={form.last_name} onChange={(e) => set("last_name", e.target.value)} />
+            <input disabled={!canEdit} className={inputCls} value={form.last_name} onChange={(e) => set("last_name", e.target.value)} />
             {err("last_name")}
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-[var(--ink)]">Date of birth *</label>
-            <input type="date" className={inputCls} value={form.date_of_birth} onChange={(e) => set("date_of_birth", e.target.value)} />
+            <input disabled={!canEdit} type="date" className={inputCls} value={form.date_of_birth} onChange={(e) => set("date_of_birth", e.target.value)} />
             {err("date_of_birth")}
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-[var(--ink)]">Gender *</label>
-            <select className={inputCls} value={form.gender} onChange={(e) => set("gender", e.target.value)}>
+            <select disabled={!canEdit} className={inputCls} value={form.gender} onChange={(e) => set("gender", e.target.value)}>
               <option value="male">Male</option>
               <option value="female">Female</option>
               <option value="other">Other</option>
@@ -316,17 +325,17 @@ function PatientModal({
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-[var(--ink)]">Phone</label>
-            <input className={inputCls} value={form.phone} onChange={(e) => set("phone", e.target.value)} placeholder="07XXXXXXXXX" />
+            <input disabled={!canEdit} className={inputCls} value={form.phone} onChange={(e) => set("phone", e.target.value)} placeholder="07XXXXXXXXX" />
             {err("phone")}
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-[var(--ink)]">Email</label>
-            <input type="email" className={inputCls} value={form.email} onChange={(e) => set("email", e.target.value)} />
+            <input disabled={!canEdit} type="email" className={inputCls} value={form.email} onChange={(e) => set("email", e.target.value)} />
             {err("email")}
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-[var(--ink)]">Blood type</label>
-            <select className={inputCls} value={form.blood_type} onChange={(e) => set("blood_type", e.target.value)}>
+            <select disabled={!canEdit} className={inputCls} value={form.blood_type} onChange={(e) => set("blood_type", e.target.value)}>
               <option value="">Unknown</option>
               {bloodTypes.map((b) => (
                 <option key={b} value={b}>{b}</option>
@@ -335,16 +344,20 @@ function PatientModal({
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-[var(--ink)]">Allergies</label>
-            <input className={inputCls} value={form.allergies} onChange={(e) => set("allergies", e.target.value)} placeholder="e.g. Penicillin" />
+            <input disabled={!canEdit} className={inputCls} value={form.allergies} onChange={(e) => set("allergies", e.target.value)} placeholder="e.g. Penicillin" />
           </div>
           <div className="sm:col-span-2">
             <label className="mb-1 block text-sm font-medium text-[var(--ink)]">Address</label>
-            <input className={inputCls} value={form.address} onChange={(e) => set("address", e.target.value)} />
+            <input disabled={!canEdit} className={inputCls} value={form.address} onChange={(e) => set("address", e.target.value)} />
           </div>
         </div>
 
         {errors._form && (
           <div className="mt-4 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-700">{errors._form}</div>
+        )}
+
+        {initial && canManagePatientFiles && (
+          <PatientFiles basePath={`/patients/${initial.id}`} patientName={`${initial.first_name} ${initial.last_name}`} canDelete />
         )}
 
         <div className="mt-6 flex items-center justify-between">
@@ -361,10 +374,10 @@ function PatientModal({
               className="rounded-full border border-[var(--border)] px-5 py-2 text-sm font-medium text-[var(--muted)] transition hover:bg-[var(--primary-tint)]/10 hover:text-[var(--ink)]">
               Cancel
             </button>
-            <button onClick={submit} disabled={saving}
+            {canEdit && <button onClick={submit} disabled={saving}
               className="rounded-full bg-[var(--primary)] px-5 py-2 text-sm font-medium text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md hover:shadow-[var(--primary)]/20 disabled:opacity-60 disabled:hover:translate-y-0">
               {saving ? "Saving…" : initial ? "Save changes" : "Register patient"}
-            </button>
+            </button>}
           </div>
         </div>
       </div>

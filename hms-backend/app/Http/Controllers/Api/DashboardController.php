@@ -11,18 +11,35 @@ use App\Models\InventoryItem;
 use App\Models\Patient;
 use App\Models\StaffProfile;
 use App\Models\Visit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
-    public function stats()
+    public function stats(Request $request)
     {
-        return response()->json(
-            Cache::remember('dashboard-stats', 30, function () {
-                return $this->computeStats();
-            })
-        );
+        $user = $request->user();
+        $isDoctor = $user->hasRole('doctor') && ! $user->hasRole('admin');
+        $doctorId = $isDoctor ? $user->staffProfile?->id : null;
+        abort_if($isDoctor && ! $doctorId, 403, 'No staff profile linked to this doctor account.');
+
+        if ($isDoctor) {
+            return response()->json([
+                ...$this->computeStats($doctorId, $user->id),
+                'my_department' => $user->staffProfile?->department()
+                    ->first(['id', 'name', 'code']),
+            ]);
+        }
+
+        $stats = Cache::remember('dashboard-stats', 30, function () {
+            return $this->computeStats(null, 0);
+        });
+        $myDepartment = $user->hasRole('nurse')
+            ? $user->staffProfile?->department()->first(['id', 'name', 'code'])
+            : null;
+
+        return response()->json([...$stats, 'my_department' => $myDepartment]);
     }
 
     /**
@@ -33,7 +50,7 @@ class DashboardController extends Controller
         Cache::forget('dashboard-stats');
     }
 
-    private function computeStats(): array
+    private function computeStats(?int $doctorId, int $userId): array
     {
         $weekStart = now()->startOfWeek();
         $lastWeekStart = now()->subWeek()->startOfWeek();
@@ -60,12 +77,21 @@ class DashboardController extends Controller
         $patientMonthExpression = sprintf($monthExpression, 'created_at');
         $visitMonthExpression = sprintf($monthExpression, 'visited_at');
 
-        $patientsByMonth = Patient::selectRaw("$patientMonthExpression as month_key, COUNT(*) as count")
+        $patientsForDoctor = fn ($query) => $query->where(function ($patients) use ($doctorId) {
+            $patients->whereHas('appointments', fn ($appointments) => $appointments->where('doctor_id', $doctorId))
+                ->orWhereHas('visits', fn ($visits) => $visits->where('doctor_id', $doctorId))
+                ->orWhereHas('admissions', fn ($admissions) => $admissions->where('doctor_id', $doctorId));
+        });
+
+        $patientsByMonth = Patient::query()
+            ->when($doctorId, $patientsForDoctor)
+            ->selectRaw("$patientMonthExpression as month_key, COUNT(*) as count")
             ->where('created_at', '>=', $chartFrom)
             ->groupByRaw($patientMonthExpression)
             ->pluck('count', 'month_key');
 
         $visitsByMonth = Visit::selectRaw("$visitMonthExpression as month_key, COUNT(*) as count")
+            ->when($doctorId, fn ($query, $id) => $query->where('doctor_id', $id))
             ->where('visited_at', '>=', $chartFrom)
             ->groupByRaw($visitMonthExpression)
             ->pluck('count', 'month_key');
@@ -102,14 +128,18 @@ class DashboardController extends Controller
             ->values();
 
         return [
-            'patients_total'        => Patient::count(),
+            'patients_total'        => Patient::query()->when($doctorId, $patientsForDoctor)->count(),
             'doctors_on_duty'       => StaffProfile::where('position', 'doctor')->where('is_active', true)->count(),
             'departments'           => Department::where('is_active', true)->count(),
             'appointments_today'    => Appointment::where('appointment_at', '>=', today())
+                                                ->when($doctorId, fn ($query, $id) => $query->where('doctor_id', $id))
                                                 ->where('appointment_at', '<', today()->addDay())
                                                 ->where('status', '!=', 'cancelled')->count(),
-            'appointments_upcoming' => Appointment::where('appointment_at', '>=', now())->whereIn('status', ['scheduled', 'confirmed'])->count(),
+            'appointments_upcoming' => Appointment::where('appointment_at', '>=', now())
+                                                ->when($doctorId, fn ($query, $id) => $query->where('doctor_id', $id))
+                                                ->whereIn('status', ['scheduled', 'confirmed'])->count(),
             'visits_today'          => Visit::where('visited_at', '>=', today())
+                                                ->when($doctorId, fn ($query, $id) => $query->where('doctor_id', $id))
                                                 ->where('visited_at', '<', today()->addDay())->count(),
 
             'low_stock_count' => InventoryItem::whereColumn('quantity', '<=', 'min_level')->count(),
@@ -122,16 +152,20 @@ class DashboardController extends Controller
 
             'trends' => [
                 'appointments' => $trend(
-                    Appointment::whereBetween('appointment_at', [$weekStart, now()])->count(),
-                    Appointment::whereBetween('appointment_at', [$lastWeekStart, $lastWeekEnd])->count()
+                    Appointment::whereBetween('appointment_at', [$weekStart, now()])
+                        ->when($doctorId, fn ($query, $id) => $query->where('doctor_id', $id))->count(),
+                    Appointment::whereBetween('appointment_at', [$lastWeekStart, $lastWeekEnd])
+                        ->when($doctorId, fn ($query, $id) => $query->where('doctor_id', $id))->count()
                 ),
                 'patients' => $trend(
-                    Patient::where('created_at', '>=', $weekStart)->count(),
-                    Patient::whereBetween('created_at', [$lastWeekStart, $lastWeekEnd])->count()
+                    Patient::query()->when($doctorId, $patientsForDoctor)->where('created_at', '>=', $weekStart)->count(),
+                    Patient::query()->when($doctorId, $patientsForDoctor)->whereBetween('created_at', [$lastWeekStart, $lastWeekEnd])->count()
                 ),
                 'visits' => $trend(
-                    Visit::whereBetween('visited_at', [$weekStart, now()])->count(),
-                    Visit::whereBetween('visited_at', [$lastWeekStart, $lastWeekEnd])->count()
+                    Visit::whereBetween('visited_at', [$weekStart, now()])
+                        ->when($doctorId, fn ($query, $id) => $query->where('doctor_id', $id))->count(),
+                    Visit::whereBetween('visited_at', [$lastWeekStart, $lastWeekEnd])
+                        ->when($doctorId, fn ($query, $id) => $query->where('doctor_id', $id))->count()
                 ),
             ],
 
@@ -143,12 +177,14 @@ class DashboardController extends Controller
                     'doctor.user:id,name'
                 )
                 ->where('appointment_at', '>=', now())
+                ->when($doctorId, fn ($query, $id) => $query->where('doctor_id', $id))
                 ->whereIn('status', ['scheduled', 'confirmed'])
                 ->orderBy('appointment_at')
                 ->limit(6)
                 ->get(['id', 'appointment_at', 'status', 'reason', 'patient_id', 'doctor_id']),
 
             'recent_activity' => AuditLog::with('user:id,name')
+                ->when($doctorId, fn ($query) => $query->where('user_id', $userId))
                 ->latest()->limit(8)
                 ->get(['id', 'action', 'auditable_type', 'created_at', 'user_id']),
         ];

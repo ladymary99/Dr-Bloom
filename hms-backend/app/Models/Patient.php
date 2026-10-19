@@ -5,8 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Patient extends Model
@@ -15,10 +15,10 @@ class Patient extends Model
 
     protected $fillable = [
         'user_id', 'mrn', 'first_name', 'last_name', 'date_of_birth', 'gender',
-        'phone', 'email', 'address', 'blood_type', 'allergies', 'national_id',
+        'phone', 'email', 'address', 'blood_type', 'allergies', 'national_id', 'profile_photo_path',
     ];
 
-    protected $hidden = ['national_id'];
+    protected $hidden = ['national_id', 'profile_photo_path'];
 
     protected $casts = [
         'date_of_birth' => 'date',
@@ -48,6 +48,11 @@ protected static function booted(): void
         return $this->hasMany(Visit::class);
     }
 
+    public function admissions(): HasMany
+    {
+        return $this->hasMany(Admission::class);
+    }
+
     public function invoices(): HasMany
     {
         return $this->hasMany(Invoice::class);
@@ -60,5 +65,10 @@ protected static function booted(): void
     public function labTests(): HasMany
     {
         return $this->hasMany(LabTest::class);
+    }
+
+    public function documents(): HasMany
+    {
+        return $this->hasMany(PatientDocument::class);
     }
 }

@@ -8,9 +8,23 @@ use Illuminate\Http\Request;
 
 class WardController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        return Ward::with('department:id,name', 'beds')
+        $doctorId = null;
+        if ($request->user()->hasRole('doctor') && ! $request->user()->hasRole('admin')) {
+            $doctorId = $request->user()->staffProfile?->id;
+            abort_if(! $doctorId, 403, 'No staff profile linked to this doctor account.');
+        }
+
+        return Ward::with([
+            'department:id,name',
+            'beds.currentAdmission' => fn ($admissions) => $admissions->when(
+                $doctorId,
+                fn ($query, $id) => $query->where('doctor_id', $id)
+            ),
+            'beds.currentAdmission.patient',
+            'beds.currentAdmission.doctor.user:id,name',
+        ])
             ->orderBy('name')
             ->get()
             ->map(fn($w) => [

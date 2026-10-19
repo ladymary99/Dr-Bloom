@@ -4,6 +4,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
+import { useAuthStore } from "@/store/auth";
 
 type PatientRow = { id: string; mrn: string; first_name: string; last_name: string };
 type Doctor = { id: number; user: { name: string }; specialization: string | null };
@@ -49,6 +50,13 @@ const icons = {
 };
 
 export default function BedsPage() {
+  const hasPermission = useAuthStore((s) => s.hasPermission);
+  const roles = useAuthStore((s) => s.roles);
+  const isDoctor = roles.includes("doctor") && !roles.includes("admin");
+  const isNurse = roles.includes("nurse") && !roles.includes("admin");
+  const canManageBeds = useAuthStore((s) => s.hasPermission("manage departments"));
+  const canManageAdmissions = hasPermission("view patients");
+  const canDischargeAdmissions = canManageAdmissions;
   const [wards, setWards] = useState<WardInfo[] | null>(null);
   const [inpatients, setInpatients] = useState<Inpatient[]>([]);
   const [modal, setModal] = useState<
@@ -95,12 +103,18 @@ export default function BedsPage() {
       <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="font-heading text-3xl font-bold tracking-tight text-[var(--ink)]">Wards & Beds</h1>
-          <p className="mt-1 text-sm text-[var(--muted)]">Click a bed to admit, discharge, or manage it.</p>
+          <p className="mt-1 text-sm text-[var(--muted)]">
+            {isDoctor || isNurse
+              ? "View bed availability and assign beds to your patients."
+              : "Click a bed to admit, discharge, or manage it."}
+          </p>
         </div>
-        <button onClick={() => setModal({ kind: "ward" })}
-          className="rounded-full bg-[var(--primary)] px-5 py-2 text-sm font-medium text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md hover:shadow-[var(--primary)]/20">
-          + Add ward
-        </button>
+        {canManageBeds && (
+          <button onClick={() => setModal({ kind: "ward" })}
+            className="rounded-full bg-[var(--primary)] px-5 py-2 text-sm font-medium text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md hover:shadow-[var(--primary)]/20">
+            + Add ward
+          </button>
+        )}
       </div>
 
       {/* KPI cards with mini bars */}
@@ -205,10 +219,12 @@ export default function BedsPage() {
                     <span className="rounded-full bg-[var(--primary-tint)]/25 px-3 py-1 text-xs font-semibold tabular-nums text-[var(--primary)]">
                       {occ}/{w.beds.length} occupied
                     </span>
-                    <button onClick={() => setModal({ kind: "addBed", ward: w })}
-                      className="rounded-full border border-[var(--border)] px-3 py-1 text-xs font-medium text-[var(--muted)] transition hover:border-[var(--primary-tint)] hover:text-[var(--primary)]">
-                      + Bed
-                    </button>
+                    {canManageBeds && (
+                      <button onClick={() => setModal({ kind: "addBed", ward: w })}
+                        className="rounded-full border border-[var(--border)] px-3 py-1 text-xs font-medium text-[var(--muted)] transition hover:border-[var(--primary-tint)] hover:text-[var(--primary)]">
+                        + Bed
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -220,8 +236,17 @@ export default function BedsPage() {
                   {w.beds.map((b) => (
                     <button
                       key={b.id}
-                      onClick={() => setModal(b.status === "occupied" ? { kind: "occupied", bed: b } : b.status === "maintenance" ? { kind: "maintenance", bed: b } : { kind: "admit", bed: b })}
-                      className={`rounded-xl border p-3 text-left transition ${bedStyle[b.status]}`}
+                      disabled={b.status === "occupied"
+                        ? !canManageBeds && !canManageAdmissions && !(isDoctor && !!b.admission)
+                        : b.status === "maintenance"
+                          ? !canManageBeds
+                          : !canManageAdmissions}
+                      onClick={() => {
+                        if (b.status === "occupied") setModal({ kind: "occupied", bed: b });
+                        else if (b.status === "maintenance" && canManageBeds) setModal({ kind: "maintenance", bed: b });
+                        else if (b.status === "available" && canManageAdmissions) setModal({ kind: "admit", bed: b });
+                      }}
+                      className={`rounded-xl border p-3 text-left transition ${bedStyle[b.status]} disabled:cursor-default disabled:hover:translate-y-0 disabled:hover:shadow-none`}
                     >
                       <div className="text-lg font-semibold tabular-nums">#{b.bed_number}</div>
                       <div className="mt-0.5 truncate text-[10px] font-medium uppercase tracking-wide">
@@ -229,7 +254,7 @@ export default function BedsPage() {
                       </div>
                     </button>
                   ))}
-                  {w.beds.length === 0 && <div className="col-span-full py-4 text-center text-sm text-[var(--muted)]">No beds yet — click &quot;+ Bed&quot;.</div>}
+                  {w.beds.length === 0 && <div className="col-span-full py-4 text-center text-sm text-[var(--muted)]">{canManageBeds ? 'No beds yet — click "+ Bed".' : "No beds yet."}</div>}
                 </div>
               </div>
             );
@@ -273,11 +298,13 @@ export default function BedsPage() {
                   <td className="px-6 py-3 tabular-nums text-[var(--muted)]">{new Date(a.admitted_at).toLocaleString()}</td>
                   <td className="px-6 py-3 text-[var(--muted)]">{a.diagnosis ?? "—"}</td>
                   <td className="px-6 py-3 text-right">
-                    <button
-                      onClick={async () => { if (confirm("Discharge this patient? Bed becomes available.")) { await api.put(`/admissions/${a.id}/discharge`); load(); } }}
-                      className="rounded-full bg-emerald-600 px-4 py-1.5 text-xs font-medium text-white shadow-sm transition hover:bg-emerald-700">
-                      Discharge
-                    </button>
+                    {canDischargeAdmissions && (
+                      <button
+                        onClick={async () => { if (confirm("Discharge this patient? Bed becomes available.")) { await api.put(`/admissions/${a.id}/discharge`); load(); } }}
+                        className="rounded-full bg-emerald-600 px-4 py-1.5 text-xs font-medium text-white shadow-sm transition hover:bg-emerald-700">
+                        Discharge
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -302,11 +329,13 @@ export default function BedsPage() {
             </div>
             <div className="mt-6 flex justify-end gap-2">
               <button onClick={() => setModal(null)} className="rounded-full border border-[var(--border)] px-5 py-2 text-sm font-medium text-[var(--muted)] transition hover:bg-[var(--primary-tint)]/10 hover:text-[var(--ink)]">Close</button>
-              <button
-                onClick={async () => { if (confirm("Discharge this patient?")) { await api.put(`/admissions/${modal.bed.admission!.id}/discharge`); setModal(null); load(); } }}
-                className="rounded-full bg-emerald-600 px-5 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-700">
-                Discharge
-              </button>
+              {canDischargeAdmissions && (
+                <button
+                  onClick={async () => { if (confirm("Discharge this patient?")) { await api.put(`/admissions/${modal.bed.admission!.id}/discharge`); setModal(null); load(); } }}
+                  className="rounded-full bg-emerald-600 px-5 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-700">
+                  Discharge
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -317,10 +346,12 @@ export default function BedsPage() {
             <h2 className="font-heading text-lg font-semibold text-[var(--ink)]">Bed #{modal.bed.bed_number} — Maintenance</h2>
             <p className="mt-2 text-sm text-[var(--muted)]">This bed is under maintenance and cannot be assigned.</p>
             <div className="mt-6 flex justify-end">
-              <button onClick={() => setBedStatus(modal.bed, "available")}
-                className="rounded-full bg-emerald-600 px-5 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-700">
-                Mark available
-              </button>
+              {canManageBeds && (
+                <button onClick={() => setBedStatus(modal.bed, "available")}
+                  className="rounded-full bg-emerald-600 px-5 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-700">
+                  Mark available
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -401,6 +432,9 @@ function StatusDonut({ available, occupied, maintenance }: { available: number; 
 /* ---------- Admit modal ---------- */
 
 function AdmitModal({ bed, onClose, onDone }: { bed: BedInfo; onClose: () => void; onDone: () => void }) {
+  const roles = useAuthStore((s) => s.roles);
+  const isDoctor = roles.includes("doctor") && !roles.includes("admin");
+  const isNurse = roles.includes("nurse") && !roles.includes("admin");
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [q, setQ] = useState("");
   const [matches, setMatches] = useState<PatientRow[]>([]);
@@ -426,6 +460,7 @@ function AdmitModal({ bed, onClose, onDone }: { bed: BedInfo; onClose: () => voi
 
   async function submit() {
     if (!patient) return setError("Select a patient.");
+    if (isNurse && !doctorId) return setError("Select the doctor already associated with this patient.");
     setError("");
     setSaving(true);
     try {
@@ -482,13 +517,22 @@ function AdmitModal({ bed, onClose, onDone }: { bed: BedInfo; onClose: () => voi
             )}
           </div>
 
-          <div>
-            <label className="mb-1 block text-sm font-medium text-[var(--ink)]">Attending doctor</label>
-            <select value={doctorId} onChange={(e) => setDoctorId(e.target.value)} className={inputCls}>
-              <option value="">None</option>
-              {doctors.map((d) => <option key={d.id} value={d.id}>{d.user.name}</option>)}
-            </select>
-          </div>
+          {!isDoctor && (
+            <div>
+              <label className="mb-1 block text-sm font-medium text-[var(--ink)]">
+                Attending doctor{isNurse ? " *" : ""}
+              </label>
+              <select value={doctorId} onChange={(e) => setDoctorId(e.target.value)} className={inputCls}>
+                <option value="">{isNurse ? "Select a doctor" : "None"}</option>
+                {doctors.map((d) => <option key={d.id} value={d.id}>{d.user.name}</option>)}
+              </select>
+              {isNurse && (
+                <p className="mt-1 text-xs text-[var(--muted)]">
+                  Select a doctor with an existing appointment or visit for this patient.
+                </p>
+              )}
+            </div>
+          )}
 
           <div>
             <label className="mb-1 block text-sm font-medium text-[var(--ink)]">Diagnosis</label>

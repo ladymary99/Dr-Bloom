@@ -12,9 +12,11 @@ class AppointmentController extends Controller
     // GET /api/appointments?doctor_id=1&status=scheduled&date=2026-10-02
     public function index(Request $request)
     {
+        $doctorId = $this->doctorProfileId($request);
         $appointments = Appointment::query()
             ->with(['patient:id,mrn,first_name,last_name', 'doctor.user:id,name', 'department:id,name,code'])
-            ->when($request->doctor_id, fn($q, $v) => $q->where('doctor_id', $v))
+            ->when($doctorId, fn($q, $v) => $q->where('doctor_id', $v))
+            ->when(! $doctorId && $request->doctor_id, fn($q) => $q->where('doctor_id', $request->doctor_id))
             ->when($request->status, fn($q, $v) => $q->where('status', $v))
             ->when($request->date, fn($q, $v) => $q
                 ->where('appointment_at', '>=', Carbon::parse($v)->startOfDay())
@@ -36,6 +38,10 @@ class AppointmentController extends Controller
             'reason' => 'nullable|string|max:500',
         ]);
 
+        if ($request->user()->hasRole('doctor') && ! $request->user()->hasRole('admin')) {
+            $data['doctor_id'] = $this->doctorProfileId($request);
+        }
+
         // Double-booking guard
         $start = Carbon::parse($data['appointment_at']);
         $conflict = Appointment::where('doctor_id', $data['doctor_id'])
@@ -52,14 +58,18 @@ class AppointmentController extends Controller
         return response()->json(Appointment::create($data)->load(['patient', 'doctor.user', 'department']), 201);
     }
 
-    public function show(Appointment $appointment)
+    public function show(Request $request, Appointment $appointment)
     {
+        $this->ensureDoctorOwnsAppointment($request, $appointment);
+
         return response()->json($appointment->load(['patient', 'doctor.user', 'department', 'visit.prescription.items']));
     }
 
     // PATCH status: scheduled -> confirmed -> checked_in -> completed (or cancelled/no_show)
     public function update(Request $request, Appointment $appointment)
     {
+        $this->ensureDoctorOwnsAppointment($request, $appointment);
+
         $data = $request->validate([
             'status' => 'sometimes|in:scheduled,confirmed,checked_in,completed,cancelled,no_show',
             'appointment_at' => 'sometimes|date',
@@ -69,5 +79,23 @@ class AppointmentController extends Controller
         $appointment->update($data);
 
         return response()->json($appointment->fresh());
+    }
+
+    private function doctorProfileId(Request $request): ?int
+    {
+        if (! $request->user()->hasRole('doctor') || $request->user()->hasRole('admin')) {
+            return null;
+        }
+
+        $doctorId = $request->user()->staffProfile?->id;
+        abort_if(! $doctorId, 403, 'No staff profile linked to this doctor account.');
+
+        return $doctorId;
+    }
+
+    private function ensureDoctorOwnsAppointment(Request $request, Appointment $appointment): void
+    {
+        $doctorId = $this->doctorProfileId($request);
+        abort_if($doctorId && $appointment->doctor_id !== $doctorId, 404);
     }
 }

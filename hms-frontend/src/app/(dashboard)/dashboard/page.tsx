@@ -10,6 +10,7 @@ import LowStockAlerts from "@/components/LowStockAlerts";
 type Trend = { current: number; pct: number; up: boolean };
 
 type Stats = {
+  my_department: { id: number; name: string; code: string } | null;
   patients_total: number;
   doctors_on_duty: number;
   departments: number;
@@ -100,6 +101,7 @@ const moneyShort = (v: number) =>
 
 export default function DashboardPage() {
   const user = useAuthStore((s) => s.user);
+  const roles = useAuthStore((s) => s.roles);
   const [stats, setStats] = useState<Stats | null>(null);
   const [today, setToday] = useState<TodayAppt[]>([]);
   const [announcement, setAnnouncement] = useState("");
@@ -109,6 +111,11 @@ export default function DashboardPage() {
     api.get("/dashboard/stats").then((response) => setStats({
       ...response.data,
       upcoming: Array.isArray(response.data.upcoming) ? response.data.upcoming : [],
+      recent_activity: Array.isArray(response.data.recent_activity)
+        ? response.data.recent_activity
+        : Array.isArray(response.data.recent_activity?.data)
+          ? response.data.recent_activity.data
+          : [],
     })).catch(() => {});
 
     const now = new Date();
@@ -132,6 +139,16 @@ export default function DashboardPage() {
         <div role="status" className="mb-6 rounded-3xl border border-[var(--primary-tint)]/50 bg-[var(--primary-tint)]/20 px-6 py-4 text-sm text-[var(--primary)]">
           <div className="font-heading font-semibold">Hospital announcement</div>
           <p className="mt-1 whitespace-pre-wrap text-[var(--muted)]">{announcement}</p>
+        </div>
+      )}
+
+      {stats?.my_department && (roles.includes("doctor") || roles.includes("nurse")) && (
+        <div className="mb-6 rounded-3xl border border-[var(--border)] bg-white px-6 py-4 shadow-sm">
+          <div className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">Your department</div>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <span className="font-heading text-lg font-semibold text-[var(--ink)]">{stats.my_department.name}</span>
+            <span className="rounded-full bg-[var(--primary-tint)]/15 px-2.5 py-0.5 font-mono text-xs text-[var(--primary)]">{stats.my_department.code}</span>
+          </div>
         </div>
       )}
 
@@ -291,6 +308,9 @@ export default function DashboardPage() {
                 <span className="flex-none text-xs tabular-nums text-[var(--muted)]">{timeAgo(log.created_at)}</span>
               </li>
             ))}
+            {stats?.recent_activity.length === 0 && (
+              <li className="px-6 py-6 text-center text-sm text-[var(--muted)]">No recent activity.</li>
+            )}
           </ul>
         </div>
 

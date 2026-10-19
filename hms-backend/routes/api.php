@@ -5,6 +5,8 @@ use App\Http\Controllers\Api\Admin\StaffProfileController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\InventoryController;
 use App\Http\Controllers\Api\PatientController;
+use App\Http\Controllers\Api\PatientDocumentController;
+use App\Http\Controllers\Api\ProfileMediaController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\DepartmentController;
@@ -15,6 +17,7 @@ use App\Http\Controllers\Api\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Api\Admin\FinanceController;
 use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\DoctorQueueController;
+use App\Http\Controllers\Api\DoctorDashboardController;
 use App\Http\Controllers\Api\VisitController;
 use App\Http\Controllers\Api\SettingController;
 use App\Http\Controllers\Api\AdmissionController;
@@ -36,6 +39,8 @@ Route::post('/contact', [ContactController::class, 'store']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
+    Route::get('/me/avatar', [ProfileMediaController::class, 'avatar']);
+    Route::post('/me/avatar', [ProfileMediaController::class, 'updateAvatar']);
     Route::get('/public/info', [PublicController::class, 'info']);
 Route::get('/public/doctors', [PublicController::class, 'doctors']);
 
@@ -49,6 +54,7 @@ Route::get('/public/doctors', [PublicController::class, 'doctors']);
 
     Route::prefix('admin')->middleware('permission:manage users')->group(function () {
         Route::get('/roles', [AdminUserController::class, 'roles']);
+        Route::get('/staff', [StaffProfileController::class, 'index']);
         Route::get('/users', [AdminUserController::class, 'index']);
         Route::post('/users', [AdminUserController::class, 'store']);
         Route::put('/users/{user}', [AdminUserController::class, 'update']);
@@ -73,6 +79,8 @@ Route::get('/public/doctors', [PublicController::class, 'doctors']);
 
      // ...after the invoices routes:
     Route::get('/doctor/queue', [DoctorQueueController::class, 'index'])->middleware('permission:conduct visits');
+    Route::get('/doctor/dashboard', [DoctorDashboardController::class, 'dashboard'])->middleware('permission:conduct visits');
+    Route::get('/doctor/department', [DoctorDashboardController::class, 'department'])->middleware('permission:conduct visits');
     Route::post('/visits', [VisitController::class, 'store'])->middleware('permission:conduct visits');
     Route::post('/visits/{visit}/prescriptions', [VisitController::class, 'addPrescription'])->middleware('permission:write prescriptions');
     Route::get('/patients/{patient}/history', [VisitController::class, 'patientHistory'])->middleware('permission:view patients');
@@ -112,6 +120,12 @@ Route::get('/public/doctors', [PublicController::class, 'doctors']);
     Route::get('/patients', [PatientController::class, 'index'])->middleware('permission:view patients');
     Route::post('/patients', [PatientController::class, 'store'])->middleware('permission:create patients');
     Route::get('/patients/{patient}', [PatientController::class, 'show'])->middleware('permission:view patients');
+    Route::get('/patients/{patient}/photo', [PatientDocumentController::class, 'photo'])->middleware('permission:view patients');
+    Route::post('/patients/{patient}/photo', [PatientDocumentController::class, 'updatePhoto'])->middleware('permission:view patients');
+    Route::get('/patients/{patient}/documents', [PatientDocumentController::class, 'index'])->middleware('permission:view patients');
+    Route::post('/patients/{patient}/documents', [PatientDocumentController::class, 'store'])->middleware('permission:view patients');
+    Route::get('/patients/{patient}/documents/{document}', [PatientDocumentController::class, 'download'])->middleware('permission:view patients');
+    Route::delete('/patients/{patient}/documents/{document}', [PatientDocumentController::class, 'destroy'])->middleware('permission:view patients');
     Route::put('/patients/{patient}', [PatientController::class, 'update'])->middleware('permission:update patients');
     Route::delete('/patients/{patient}', [PatientController::class, 'destroy'])->middleware('permission:delete patients');
     Route::get('/admin/finance/export', [FinanceController::class, 'export'])->middleware('permission:manage payments');
@@ -123,6 +137,12 @@ Route::get('/public/doctors', [PublicController::class, 'doctors']);
 
 Route::middleware(['auth:sanctum', 'role:patient'])->prefix('portal')->group(function () {
     Route::get('/me', [PortalController::class, 'me']);
+    Route::get('/photo', [PatientDocumentController::class, 'myPhoto']);
+    Route::post('/photo', [PatientDocumentController::class, 'updateMyPhoto']);
+    Route::get('/documents', [PatientDocumentController::class, 'myDocuments']);
+    Route::post('/documents', [PatientDocumentController::class, 'storeForMe']);
+    Route::get('/documents/{document}', [PatientDocumentController::class, 'downloadForMe']);
+    Route::delete('/documents/{document}', [PatientDocumentController::class, 'destroyForMe']);
     Route::get('/appointments', [PortalController::class, 'appointments']);
     Route::post('/appointments', [PortalController::class, 'book']);
     Route::put('/appointments/{appointment}/cancel', [PortalController::class, 'cancel']);

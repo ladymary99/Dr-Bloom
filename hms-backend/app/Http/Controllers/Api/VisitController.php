@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Admission;
 use App\Models\Appointment;
 use App\Models\AuditLog;
 use App\Models\Patient;
@@ -28,6 +29,24 @@ class VisitController extends Controller
         $doctorId = $request->user()->staffProfile?->id;
         if (! $doctorId) {
             return response()->json(['message' => 'No staff profile linked to this account.'], 403);
+        }
+
+        $patientHasAppointment = Appointment::where('patient_id', $data['patient_id'])
+            ->where('doctor_id', $doctorId)
+            ->exists();
+        $patientHasVisit = Visit::where('patient_id', $data['patient_id'])
+            ->where('doctor_id', $doctorId)
+            ->exists();
+        $patientHasAdmission = Admission::where('patient_id', $data['patient_id'])
+            ->where('doctor_id', $doctorId)
+            ->exists();
+        abort_unless($patientHasAppointment || $patientHasVisit || $patientHasAdmission, 404);
+
+        if (! empty($data['appointment_id'])) {
+            Appointment::whereKey($data['appointment_id'])
+                ->where('patient_id', $data['patient_id'])
+                ->where('doctor_id', $doctorId)
+                ->firstOrFail();
         }
 
         $visit = DB::transaction(function () use ($data, $doctorId) {
@@ -65,6 +84,12 @@ class VisitController extends Controller
     // POST /api/visits/{visit}/prescriptions — e-prescription with items
     public function addPrescription(Request $request, Visit $visit)
     {
+        if ($request->user()->hasRole('doctor') && ! $request->user()->hasRole('admin')) {
+            $doctorId = $request->user()->staffProfile?->id;
+            abort_if(! $doctorId, 403, 'No staff profile linked to this doctor account.');
+            abort_if($visit->doctor_id !== $doctorId, 404);
+        }
+
         if ($visit->prescription) {
             return response()->json(['message' => 'This visit already has a prescription.'], 422);
         }
@@ -94,12 +119,20 @@ class VisitController extends Controller
     }
 
     // GET /api/patients/{patient}/history — chart history
-    public function patientHistory(Patient $patient)
+    public function patientHistory(Request $request, Patient $patient)
     {
-        return $patient->visits()
-            ->with('doctor.user:id,name', 'prescription.items')
-            ->orderByDesc('visited_at')
-            ->limit(20)
-            ->get();
+        $query = $patient->visits();
+        if ($request->user()->hasRole('doctor') && ! $request->user()->hasRole('admin')) {
+            $doctorId = $request->user()->staffProfile?->id;
+            abort_if(! $doctorId, 403, 'No staff profile linked to this doctor account.');
+            $hasAppointment = $patient->appointments()->where('doctor_id', $doctorId)->exists();
+            $hasVisit = $patient->visits()->where('doctor_id', $doctorId)->exists();
+            $hasAdmission = $patient->admissions()->where('doctor_id', $doctorId)->exists();
+            abort_unless($hasAppointment || $hasVisit || $hasAdmission, 404);
+            $query->where('doctor_id', $doctorId);
+        }
+
+        return $query->with('doctor.user:id,name', 'prescription.items')
+            ->orderByDesc('visited_at')->limit(20)->get();
     }
 }

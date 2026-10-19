@@ -8,6 +8,7 @@ import { api } from "@/lib/api";
 import { useAuthStore } from "@/store/auth";
 import AnnouncementBanner from "@/components/AnnouncementBanner";
 import Icon, { type IconName } from "@/components/icons";
+import ProfileAvatar from "@/components/ProfileAvatar";
 
 type NavItem = { href: string; label: string; icon: IconName; perm?: string; role?: string; notRole?: string };
 
@@ -16,6 +17,7 @@ const navItems: NavItem[] = [
   { href: "/patients", label: "Patients", icon: "patients", perm: "view patients" },
   { href: "/appointments", label: "Appointments", icon: "appointments", perm: "manage appointments" },
   { href: "/doctor/queue", label: "My Queue", icon: "queue", perm: "conduct visits", notRole: "admin" },
+  { href: "/my-department", label: "My Department", icon: "departments", role: "doctor" },
   { href: "/beds", label: "Wards & Beds", icon: "beds", perm: "" },
   { href: "/lab", label: "Laboratory", icon: "lab", perm: "manage lab" },
   { href: "/pharmacy", label: "Pharmacy", icon: "pharmacy", perm: "manage pharmacy" },
@@ -263,9 +265,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <button
               onClick={() => router.push("/profile")}
               title="My Profile"
-              className="ml-1 flex h-10 w-10 items-center justify-center rounded-full bg-[var(--primary)] font-heading text-sm font-semibold text-white shadow-md shadow-[var(--primary)]/30 ring-2 ring-[var(--primary-tint)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg"
+              className="ml-1 rounded-full ring-2 ring-[var(--primary-tint)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg"
             >
-              {user?.name?.charAt(0).toUpperCase()}
+              <ProfileAvatar name={user?.name ?? "Profile"} className="h-10 w-10 rounded-full bg-[var(--primary)] font-heading text-sm font-semibold text-white shadow-md shadow-[var(--primary)]/30" />
             </button>
           </div>
         </div>

@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
+import PatientFiles from "@/components/PatientFiles";
 
 type PortalData = {
-  patient: { mrn: string; first_name: string; last_name: string; blood_type: string | null; allergies: string | null };
+  patient: { id: string; mrn: string; first_name: string; last_name: string; blood_type: string | null; allergies: string | null };
   next_appointment: {
     appointment_at: string; status: string; reason: string | null;
     doctor: { user: { name: string } } | null;
@@ -75,6 +76,8 @@ export default function PortalDashboard() {
           </div>
         ) : <p className="mt-5 text-sm text-slate-500">No upcoming appointments are scheduled.</p>}
       </section>
+
+      <PatientFiles basePath="/portal" patientName={`${patient.first_name} ${patient.last_name}`} canDelete />
     </div>
   );
 }

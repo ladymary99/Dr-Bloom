@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { api } from "@/lib/api";
+import { useAuthStore } from "@/store/auth";
 
 type InventoryItem = {
   id: number;
@@ -21,8 +22,11 @@ type StaffMember = {
   specialization: string | null;
   employee_code: string;
   department_id: number | null;
+  department?: { id: number; name: string } | null;
   user: { name: string; email: string };
 };
+
+type AvailableStaff = StaffMember;
 
 type Detail = {
   department: { id: number; name: string; code: string; description: string | null };
@@ -43,6 +47,11 @@ const cardCls =
 const inputCls =
   "w-full rounded-xl border border-[var(--border)] bg-white px-4 py-2.5 text-sm text-[var(--ink)] outline-none transition placeholder:text-[var(--muted)]/60 focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--primary-tint)]/30";
 
+async function fetchStaffRoster(search = ""): Promise<AvailableStaff[]> {
+  const { data } = await api.get("/admin/staff", { params: { search: search || undefined } });
+  return data;
+}
+
 const iconProps = {
   fill: "none", stroke: "currentColor", strokeWidth: 1.7,
   strokeLinecap: "round", strokeLinejoin: "round", viewBox: "0 0 24 24",
@@ -57,12 +66,14 @@ const statIcons = [
 
 export default function DepartmentDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const canManageUsers = useAuthStore((state) => state.hasPermission("manage users"));
   const [data, setData] = useState<Detail | null>(null);
   const [error, setError] = useState("");
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [inventoryError, setInventoryError] = useState("");
   const [editingItem, setEditingItem] = useState<InventoryItem | "new" | null>(null);
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
+  const [addingStaff, setAddingStaff] = useState(false);
 
   useEffect(() => {
     if (id) api.get(`/departments/${id}`).then((r) => setData(r.data)).catch(() => setError("Could not load department."));
@@ -131,8 +142,17 @@ export default function DepartmentDetailPage() {
       <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
         {/* Personnel */}
         <div className={`${cardCls} overflow-hidden`}>
-          <div className="border-b border-[var(--border)] bg-[var(--primary-tint)]/10 px-6 py-4">
+          <div className="flex items-center justify-between border-b border-[var(--border)] bg-[var(--primary-tint)]/10 px-6 py-4">
             <h2 className="font-heading font-semibold text-[var(--ink)]">Personnel ({staff.length})</h2>
+            {canManageUsers && (
+              <button
+                type="button"
+                onClick={() => setAddingStaff(true)}
+                className="rounded-full bg-[var(--primary)] px-4 py-1.5 text-xs font-medium text-white shadow-sm transition hover:bg-[var(--primary)]/85"
+              >
+                + Add personnel
+              </button>
+            )}
           </div>
           {staff.length === 0 ? (
             <div className="p-10 text-center text-sm text-[var(--muted)]">No staff assigned.</div>
@@ -157,7 +177,7 @@ export default function DepartmentDetailPage() {
                       <button type="button" onClick={async () => {
                         if (confirm(`Remove ${s.user.name} from this department?`)) {
                           try {
-                            await api.delete(`/admin/staff/${s.id}`);
+                            await api.put(`/admin/staff/${s.id}`, { department_id: null });
                             refreshDepartment();
                           } catch {
                             setError("Could not remove this staff member.");
@@ -292,6 +312,140 @@ export default function DepartmentDetailPage() {
           }}
         />
       )}
+      {addingStaff && (
+        <AddStaffModal
+          departmentId={department.id}
+          departmentName={department.name}
+          onClose={() => setAddingStaff(false)}
+          onSaved={() => {
+            setAddingStaff(false);
+            refreshDepartment();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function AddStaffModal({ departmentId, departmentName, onClose, onSaved }: {
+  departmentId: number;
+  departmentName: string;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [staff, setStaff] = useState<AvailableStaff[]>([]);
+  const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [savingId, setSavingId] = useState<number | null>(null);
+  const [error, setError] = useState("");
+
+  async function loadStaff(term = "") {
+    setLoading(true);
+    setError("");
+    try {
+      setStaff(await fetchStaffRoster(term));
+    } catch {
+      setError("Could not load existing doctors and nurses.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadInitialStaff() {
+      try {
+        const roster = await fetchStaffRoster();
+        if (!cancelled) setStaff(roster);
+      } catch {
+        if (!cancelled) setError("Could not load existing doctors and nurses.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    loadInitialStaff();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function assign(staffMember: AvailableStaff) {
+    setSavingId(staffMember.id);
+    setError("");
+    try {
+      await api.put(`/admin/staff/${staffMember.id}`, { department_id: departmentId });
+      onSaved();
+    } catch (e: unknown) {
+      const requestError = e as { response?: { data?: { message?: string } } };
+      setError(requestError.response?.data?.message ?? "Could not assign this person.");
+    } finally {
+      setSavingId(null);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--ink)]/40 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl border border-[var(--border)] bg-white p-6 shadow-xl" onClick={(event) => event.stopPropagation()}>
+        <h2 className="font-heading text-lg font-semibold text-[var(--ink)]">Assign existing personnel</h2>
+        <p className="mt-1 text-sm text-[var(--muted)]">Choose an active doctor or nurse from the hospital roster for {departmentName}. Assigning someone from another department moves them here.</p>
+
+        <form
+          className="mt-5 flex gap-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            loadStaff(search.trim());
+          }}
+        >
+          <input
+            className={inputCls}
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search name, email, or employee code"
+            aria-label="Search hospital personnel"
+          />
+          <button type="submit" className="rounded-full border border-[var(--border)] px-4 text-sm font-medium text-[var(--muted)]">
+            Search
+          </button>
+        </form>
+
+        {error && <p role="alert" className="mt-4 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-700">{error}</p>}
+        <div className="mt-4 overflow-hidden rounded-2xl border border-[var(--border)]">
+          {loading ? (
+            <p className="px-4 py-8 text-center text-sm text-[var(--muted)]">Loading hospital personnel…</p>
+          ) : staff.length === 0 ? (
+            <p className="px-4 py-8 text-center text-sm text-[var(--muted)]">No active doctors or nurses found.</p>
+          ) : (
+            <ul className="divide-y divide-[var(--border)]/60">
+              {staff.map((member) => {
+                const alreadyAssigned = member.department_id === departmentId;
+                return (
+                  <li key={member.id} className="flex items-center gap-3 px-4 py-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-[var(--ink)]">{member.user.name}</p>
+                      <p className="truncate text-xs text-[var(--muted)]">
+                        {member.position} · {member.specialization || member.employee_code}
+                        {member.department?.name && ` · Currently: ${member.department.name}`}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => assign(member)}
+                      disabled={alreadyAssigned || savingId !== null}
+                      className="flex-none rounded-full bg-[var(--primary)] px-3 py-1.5 text-xs font-medium text-white disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
+                    >
+                      {alreadyAssigned ? "Assigned" : savingId === member.id ? "Assigning…" : "Assign"}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+
+        <div className="mt-6 flex justify-end gap-2">
+          <button type="button" onClick={onClose} className="rounded-full border border-[var(--border)] px-5 py-2 text-sm font-medium text-[var(--muted)]">Cancel</button>
+        </div>
+      </div>
     </div>
   );
 }
