@@ -41,6 +41,23 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me/avatar', [ProfileMediaController::class, 'avatar']);
     Route::post('/me/avatar', [ProfileMediaController::class, 'updateAvatar']);
+    Route::get('/notifications', function () {
+        return auth()->user()->notifications()
+            ->latest()
+            ->limit(20)
+            ->get(['id', 'type', 'data', 'read_at', 'created_at']);
+    });
+    Route::post('/notifications/read-all', function () {
+        auth()->user()->unreadNotifications->markAsRead();
+
+        return response()->json(['message' => 'All marked as read.']);
+    });
+    Route::post('/notifications/{notification}/read', function (string $notification) {
+        $record = auth()->user()->notifications()->whereKey($notification)->firstOrFail();
+        $record->markAsRead();
+
+        return response()->json(['message' => 'Notification marked as read.']);
+    });
     Route::get('/public/info', [PublicController::class, 'info']);
 Route::get('/public/doctors', [PublicController::class, 'doctors']);
 
@@ -137,6 +154,7 @@ Route::get('/public/doctors', [PublicController::class, 'doctors']);
 
 Route::middleware(['auth:sanctum', 'role:patient'])->prefix('portal')->group(function () {
     Route::get('/me', [PortalController::class, 'me']);
+    Route::get('/announcements', [AnnouncementController::class, 'portal']);
     Route::get('/photo', [PatientDocumentController::class, 'myPhoto']);
     Route::post('/photo', [PatientDocumentController::class, 'updateMyPhoto']);
     Route::get('/documents', [PatientDocumentController::class, 'myDocuments']);

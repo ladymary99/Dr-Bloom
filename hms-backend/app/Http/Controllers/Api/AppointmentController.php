@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Appointment;
+use App\Notifications\AppointmentBookedNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 
@@ -55,7 +56,26 @@ class AppointmentController extends Controller
             return response()->json(['message' => 'Doctor already has an appointment in that time window.'], 422);
         }
 
-        return response()->json(Appointment::create($data)->load(['patient', 'doctor.user', 'department']), 201);
+        $appointment = Appointment::create($data)->load(['patient', 'doctor.user', 'department']);
+
+        // ── Notify doctor + patient ──
+        $when = $start->format('D d M, H:i');
+        $patientName = $appointment->patient
+            ? "{$appointment->patient->first_name} {$appointment->patient->last_name}"
+            : 'a patient';
+
+        $appointment->doctor?->user?->notify(new AppointmentBookedNotification(
+            $appointment->id,
+            "New appointment: {$patientName} on {$when}"
+        ));
+
+        // patient user account (portal) — requires patient->user relation
+        $appointment->patient?->user?->notify(new AppointmentBookedNotification(
+            $appointment->id,
+            "Your appointment is confirmed for {$when}"
+        ));
+
+        return response()->json($appointment, 201);
     }
 
     public function show(Request $request, Appointment $appointment)

@@ -5,7 +5,10 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Invoice;
+use App\Models\User;
+use App\Notifications\PaymentReceivedNotification;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Notification;
 
 class InvoiceController extends Controller
 {
@@ -57,6 +60,14 @@ class InvoiceController extends Controller
             'user_agent' => $request->userAgent(),
         ]);
 
+        // ── Notify admins if already paid ──
+        if ($invoice->status === 'paid') {
+            Notification::send(
+                User::role('admin')->get(),
+                new PaymentReceivedNotification($invoice->invoice_number, (float) $invoice->amount)
+            );
+        }
+
         return response()->json($invoice->load('patient', 'department'), 201);
     }
 
@@ -69,6 +80,7 @@ class InvoiceController extends Controller
         ]);
 
         $old = $invoice->only(['status', 'amount']);
+        $becamePaid = $old['status'] !== 'paid' && $data['status'] === 'paid';
 
         $invoice->update([
             'status' => $data['status'],
@@ -86,6 +98,14 @@ class InvoiceController extends Controller
             'ip_address' => $request->ip(),
             'user_agent' => $request->userAgent(),
         ]);
+
+        // ── Notify admins on payment ──
+        if ($becamePaid) {
+            Notification::send(
+                User::role('admin')->get(),
+                new PaymentReceivedNotification($invoice->invoice_number, (float) $invoice->amount)
+            );
+        }
 
         return response()->json($invoice->fresh());
     }

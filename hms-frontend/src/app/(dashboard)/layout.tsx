@@ -9,6 +9,7 @@ import { useAuthStore } from "@/store/auth";
 import AnnouncementBanner from "@/components/AnnouncementBanner";
 import Icon, { type IconName } from "@/components/icons";
 import ProfileAvatar from "@/components/ProfileAvatar";
+import NotificationBell from "@/components/NotificationBell";
 
 type NavItem = { href: string; label: string; icon: IconName; perm?: string; role?: string; notRole?: string };
 
@@ -183,7 +184,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden
                       className={`transition-transform duration-300 ${adminMenuOpen ? "rotate-180" : ""}`}
                     >
-                      <path d="m6 9 6 6 6-6" />
+                      <path key="chevron" d="m6 9 6 6 6-6" />
                     </svg>
                   </button>
 
@@ -221,8 +222,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {/* mobile spacer when bar is hidden */}
           <div className="mx-auto md:hidden" />
 
-          {/* Right: ⋯ menu + avatar */}
+          {/* Right: bell + ⋯ menu + avatar */}
           <div className="ml-auto flex flex-none items-center gap-1.5">
+            <NotificationBell />
             {/* ⋯ menu */}
             <div className="relative">
               <button

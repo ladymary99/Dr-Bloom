@@ -7,7 +7,10 @@ use App\Http\Requests\StorePatientRequest;
 use App\Http\Requests\UpdatePatientRequest;
 use App\Models\AuditLog;
 use App\Models\Patient;
+use App\Models\User;
+use App\Notifications\NewPatientNotification;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Notification;
 
 class PatientController extends Controller
 {
@@ -58,6 +61,12 @@ class PatientController extends Controller
             'ip_address' => $request->ip(),
             'user_agent' => $request->userAgent(),
         ]);
+
+        // ── Notify all admins ──
+        Notification::send(
+            User::role('admin')->get(),
+            new NewPatientNotification($patient->full_name, $patient->mrn)
+        );
 
         return response()->json($patient, 201);
     }

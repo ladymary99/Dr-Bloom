@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { api } from "@/lib/api";
 
 type Appointment = {
@@ -12,14 +13,22 @@ type Appointment = {
   department: { name: string } | null;
 };
 
-const statusClasses: Record<string, string> = {
-  scheduled: "bg-blue-50 text-blue-800",
-  confirmed: "bg-blue-50 text-blue-800",
-  checked_in: "bg-amber-50 text-amber-800",
-  completed: "bg-green-50 text-green-800",
-  cancelled: "bg-red-50 text-red-700",
-  no_show: "bg-red-50 text-red-700",
+const cardCls =
+  "rounded-3xl border border-[var(--border)] bg-white shadow-sm overflow-hidden";
+
+const statusPill: Record<string, string> = {
+  scheduled: "bg-[var(--primary-tint)]/25 text-[var(--primary)]",
+  confirmed: "bg-[var(--primary-tint)]/25 text-[var(--primary)]",
+  checked_in: "bg-amber-100 text-amber-700",
+  completed: "bg-emerald-100 text-emerald-700",
+  cancelled: "bg-red-100 text-red-600",
+  no_show: "bg-red-100 text-red-600",
 };
+
+const iconProps = {
+  fill: "none", stroke: "currentColor", strokeWidth: 1.7,
+  strokeLinecap: "round", strokeLinejoin: "round", viewBox: "0 0 24 24",
+} as const;
 
 export default function MyAppointmentsPage() {
   const [appointments, setAppointments] = useState<Appointment[] | null>(null);
@@ -68,35 +77,85 @@ export default function MyAppointmentsPage() {
   }
 
   return (
-    <div>
-      <header className="flex flex-wrap items-end justify-between gap-3">
+    <div className="animate-fade-up w-full">
+      {/* Header */}
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <p className="text-sm font-medium text-blue-700">Your care</p>
-          <h1 className="mt-1 text-2xl font-semibold text-slate-900">Appointments</h1>
+          <h1 className="font-heading text-3xl font-bold tracking-tight text-[var(--ink)]">Appointments</h1>
+          <p className="mt-1 text-sm text-[var(--muted)]">Your upcoming and past visits.</p>
         </div>
-        <div className="flex gap-2" role="tablist" aria-label="Appointment date range">
-          {(["upcoming", "past"] as const).map((value) => (
-            <button key={value} type="button" role="tab" aria-selected={tab === value} onClick={() => setTab(value)}
-              className={`rounded-full px-4 py-2 text-sm font-medium capitalize ${tab === value ? "bg-blue-700 text-white" : "border border-slate-300 bg-white text-slate-600 hover:bg-slate-50"}`}>
-              {value} ({value === "upcoming" ? upcoming.length : past.length})
-            </button>
-          ))}
-        </div>
-      </header>
+        <Link href="/portal/book"
+          className="rounded-full bg-[var(--primary)] px-5 py-2 text-sm font-medium text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md hover:shadow-[var(--primary)]/20">
+          + Book appointment
+        </Link>
+      </div>
 
-      {error && <p role="alert" className="mt-4 text-sm text-red-700">{error}</p>}
-      <section className="mt-5 border-y border-slate-200 bg-white sm:border">
-        {!appointments ? <p className="p-10 text-center text-slate-500">Loading appointments…</p> : shown.length === 0 ? <p className="p-10 text-center text-slate-500">No {tab} appointments.</p> : (
-          <ul className="divide-y divide-slate-100">
-            {shown.map((appointment) => (
-              <li key={appointment.id} className="flex flex-wrap items-center gap-3 px-5 py-4 sm:px-6">
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium text-slate-900">{new Date(appointment.appointment_at).toLocaleString([], { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</p>
-                  <p className="mt-1 text-sm text-slate-500">{appointment.doctor?.user?.name ?? "Care team"} · {appointment.department?.name ?? "Hospital"}{appointment.reason ? ` · ${appointment.reason}` : ""}</p>
+      {/* Tabs */}
+      <div className="mb-4 flex gap-2" role="tablist" aria-label="Appointment date range">
+        {(["upcoming", "past"] as const).map((value) => (
+          <button key={value} type="button" role="tab" aria-selected={tab === value} onClick={() => setTab(value)}
+            className={`rounded-full px-4 py-1.5 text-sm font-medium capitalize transition ${
+              tab === value
+                ? "bg-[var(--primary)] text-white shadow-sm"
+                : "border border-[var(--border)] bg-white text-[var(--muted)] hover:border-[var(--primary-tint)] hover:text-[var(--primary)]"
+            }`}>
+            {value} ({value === "upcoming" ? upcoming.length : past.length})
+          </button>
+        ))}
+      </div>
+
+      {error && (
+        <div className="mb-4 flex items-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <svg {...iconProps} className="h-4 w-4 flex-none"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+          {error}
+        </div>
+      )}
+
+      {/* List */}
+      <div className={cardCls}>
+        {!appointments ? (
+          <ul className="divide-y divide-[var(--border)]/60">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <li key={i} className="flex items-center gap-3 px-6 py-4">
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 w-48 animate-pulse rounded bg-[var(--primary-tint)]/20" />
+                  <div className="h-3 w-64 animate-pulse rounded bg-[var(--primary-tint)]/15" />
                 </div>
-                <span className={`rounded-full px-3 py-1 text-xs font-medium capitalize ${statusClasses[appointment.status] ?? "bg-slate-100 text-slate-700"}`}>{appointment.status.replaceAll("_", " ")}</span>
+                <div className="h-6 w-20 animate-pulse rounded-full bg-[var(--primary-tint)]/15" />
+              </li>
+            ))}
+          </ul>
+        ) : shown.length === 0 ? (
+          <div className="p-12 text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[var(--primary-tint)]/20">
+              <svg {...iconProps} className="h-5 w-5 text-[var(--primary)]"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg>
+            </div>
+            <p className="mt-3 text-sm text-[var(--muted)]">No {tab} appointments.</p>
+            {tab === "upcoming" && (
+              <Link href="/portal/book" className="mt-2 inline-block text-sm font-medium text-[var(--primary)] hover:underline">
+                Book one now →
+              </Link>
+            )}
+          </div>
+        ) : (
+          <ul className="divide-y divide-[var(--border)]/60">
+            {shown.map((appointment) => (
+              <li key={appointment.id} className="flex flex-wrap items-center gap-3 px-6 py-4 transition hover:bg-[var(--primary-tint)]/10">
+                <div className="min-w-0 flex-1">
+                  <p className="font-heading font-semibold tabular-nums text-[var(--ink)]">
+                    {new Date(appointment.appointment_at).toLocaleString([], { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                  </p>
+                  <p className="mt-0.5 text-sm text-[var(--muted)]">
+                    {appointment.doctor?.user?.name ?? "Care team"} · {appointment.department?.name ?? "Hospital"}
+                    {appointment.reason ? ` · ${appointment.reason}` : ""}
+                  </p>
+                </div>
+                <span className={`rounded-full px-3 py-1 text-xs font-semibold capitalize ${statusPill[appointment.status] ?? "bg-[var(--primary-tint)]/15 text-[var(--muted)]"}`}>
+                  {appointment.status.replaceAll("_", " ")}
+                </span>
                 {tab === "upcoming" && ["scheduled", "confirmed"].includes(appointment.status) && (
-                  <button type="button" disabled={busyId === appointment.id} onClick={() => cancel(appointment.id)} className="text-sm font-medium text-red-700 hover:underline disabled:opacity-50">
+                  <button type="button" disabled={busyId === appointment.id} onClick={() => cancel(appointment.id)}
+                    className="text-sm font-medium text-red-600 transition hover:text-red-700 hover:underline disabled:opacity-50">
                     {busyId === appointment.id ? "Cancelling…" : "Cancel"}
                   </button>
                 )}
@@ -104,7 +163,7 @@ export default function MyAppointmentsPage() {
             ))}
           </ul>
         )}
-      </section>
+      </div>
     </div>
   );
 }

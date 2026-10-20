@@ -9,6 +9,7 @@ use App\Models\Patient;
 use App\Models\Prescription;
 use App\Models\Setting;
 use App\Models\StaffProfile;
+use App\Notifications\AppointmentBookedNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -108,6 +109,17 @@ class PortalController extends Controller
             return $appointment;
         });
 
+        $when = $start->format('D d M, H:i');
+        $doctor->user?->notify(new AppointmentBookedNotification(
+            $appointment->id,
+            "New online booking: {$patient->first_name} {$patient->last_name} on {$when}"
+        ));
+
+        $request->user()->notify(new AppointmentBookedNotification(
+            $appointment->id,
+            "Your appointment with Dr. {$doctor->user?->name} is confirmed for {$when}"
+        ));
+
         return response()->json($appointment->load('doctor.user', 'department'), 201);
     }
 
@@ -118,6 +130,10 @@ class PortalController extends Controller
         abort_if(! in_array($appointment->status, ['scheduled', 'confirmed'], true), 422, 'This appointment cannot be cancelled.');
 
         $appointment->update(['status' => 'cancelled']);
+        $appointment->doctor?->user?->notify(new AppointmentBookedNotification(
+            $appointment->id,
+            "Appointment cancelled by {$patient->first_name} {$patient->last_name}"
+        ));
 
         return $appointment->fresh();
     }

@@ -3,13 +3,13 @@ import React from "react";
 export type IconName =
   | "dashboard" | "patients" | "appointments" | "queue" | "beds" | "lab"
   | "pharmacy" | "departments" | "payments" | "reports" | "announcements"
-  | "users" | "audit" | "mail" | "settings" | "dots" | "logout" | "profile" | "plus" | "briefcase";
+  | "users" | "audit" | "mail" | "settings" | "dots" | "logout" | "profile" | "plus" | "briefcase" | "bell";
 
 function Svg({ children, size = 18 }: { children: React.ReactNode; size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
       strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      {children}
+      {React.Children.toArray(children)}
     </svg>
   );
 }
@@ -56,5 +56,7 @@ export default function Icon({ name, size = 18 }: { name: IconName; size?: numbe
       return <Svg size={size}><path key="plus" d="M12 5v14M5 12h14" /></Svg>;
     case "briefcase":
       return <Svg size={size}><rect key="case" x="2" y="7" width="20" height="14" rx="2" /><path key="handle" d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" /></Svg>;
+    case "bell":
+      return <Svg size={size}><path key="bell" d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path key="bell-clapper" d="M10.3 21a1.94 1.94 0 0 0 3.4 0" /></Svg>;
   }
 }

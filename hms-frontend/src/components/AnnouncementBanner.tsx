@@ -12,18 +12,18 @@ const iconProps = {
   strokeLinecap: "round", strokeLinejoin: "round", viewBox: "0 0 24 24",
 } as const;
 
-export default function AnnouncementBanner() {
+export default function AnnouncementBanner({ endpoint = "/announcements" }: { endpoint?: string }) {
   const [items, setItems] = useState<Announcement[]>([]);
   const [dismissed, setDismissed] = useState<number[]>([]);
 
   useEffect(() => {
-    api.get("/announcements").then((r) => setItems(r.data)).catch(() => {});
+    api.get(endpoint).then((r) => setItems(r.data)).catch(() => {});
     try {
       setDismissed(JSON.parse(localStorage.getItem("dismissed-announcements") ?? "[]"));
     } catch {
       setDismissed([]);
     }
-  }, []);
+  }, [endpoint]);
 
   function dismiss(id: number) {
     const next = [...dismissed, id];
