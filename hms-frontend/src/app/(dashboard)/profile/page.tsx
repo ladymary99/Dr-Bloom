@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/store/auth";
 import ProfileAvatar from "@/components/ProfileAvatar";
+import AvatarUploadButton from "@/components/AvatarUploadButton";
 
 const inputCls =
   "w-full rounded-xl border border-[var(--border)] bg-white px-4 py-2.5 text-sm text-[var(--ink)] outline-none transition placeholder:text-[var(--muted)]/60 focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--primary-tint)]/30";
@@ -15,11 +16,6 @@ export default function ProfilePage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
-  const [avatar, setAvatar] = useState<File | null>(null);
-  const [avatarKey, setAvatarKey] = useState(0);
-  const [avatarSaving, setAvatarSaving] = useState(false);
-  const [avatarMessage, setAvatarMessage] = useState("");
-  const [avatarError, setAvatarError] = useState("");
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -38,29 +34,6 @@ export default function ProfilePage() {
       setError(data?.errors ? Object.values(data.errors).flat()[0] : data?.message ?? "Could not update password.");
     } finally {
       setSaving(false);
-    }
-  }
-
-  async function uploadAvatar() {
-    if (!avatar) return;
-    setAvatarSaving(true);
-    setAvatarMessage("");
-    setAvatarError("");
-    const payload = new FormData();
-    payload.append("avatar", avatar);
-    try {
-      const response = await api.post("/me/avatar", payload);
-      setAvatarMessage(response.data.message);
-      setAvatar(null);
-      setAvatarKey((key) => key + 1);
-      window.dispatchEvent(new Event("profile-avatar-updated"));
-    } catch (requestError) {
-      const data = (requestError as {
-        response?: { data?: { message?: string; errors?: Record<string, string[]> } };
-      }).response?.data;
-      setAvatarError(data?.errors ? Object.values(data.errors).flat()[0] : data?.message ?? "Could not update profile photo.");
-    } finally {
-      setAvatarSaving(false);
     }
   }
 
@@ -83,7 +56,10 @@ export default function ProfilePage() {
       {/* Profile card */}
       <section className="rounded-3xl border border-[var(--border)] bg-white p-6 shadow-sm sm:p-7">
         <div className="flex items-center gap-4">
-          <ProfileAvatar name={user?.name ?? "Profile"} className="h-16 w-16 rounded-full bg-[var(--primary-tint)]/20 font-heading text-2xl font-bold text-[var(--primary)]" refreshKey={avatarKey} />
+          <ProfileAvatar
+            name={user?.name ?? "Profile"}
+            className="h-16 w-16 rounded-full bg-[var(--primary-tint)]/20 font-heading text-2xl font-bold text-[var(--primary)]"
+          />
           <div className="min-w-0">
             <h2 className="truncate font-heading text-xl font-semibold text-[var(--ink)]">{user?.name ?? "—"}</h2>
             <p className="truncate text-sm text-[var(--muted)]">{user?.email ?? "—"}</p>
@@ -98,17 +74,9 @@ export default function ProfilePage() {
             )}
           </div>
         </div>
-        <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-[var(--border)]/60 pt-5">
-          <input type="file" accept="image/jpeg,image/png,image/webp" aria-label="Choose profile photo"
-            onChange={(event) => setAvatar(event.target.files?.[0] ?? null)} className="min-w-0 flex-1 text-sm text-[var(--muted)]" />
-          <button type="button" onClick={uploadAvatar} disabled={!avatar || avatarSaving}
-            className="rounded-full bg-[var(--primary)] px-4 py-2 text-sm font-medium text-white disabled:opacity-50">
-            {avatarSaving ? "Uploading…" : "Upload profile photo"}
-          </button>
-          <p className="w-full text-xs text-[var(--muted)]">JPG, PNG, or WebP · max 5 MB.</p>
-        </div>
-        {avatarMessage && <p role="status" className="mt-3 text-sm text-emerald-700">{avatarMessage}</p>}
-        {avatarError && <p role="alert" className="mt-3 text-sm text-red-600">{avatarError}</p>}
+
+        {/* clean upload button — no "Choose file", no format text */}
+        <AvatarUploadButton />
 
         <dl className="mt-6 grid gap-5 border-t border-[var(--border)]/60 pt-6 sm:grid-cols-2">
           {details.slice(1).map((d) => (

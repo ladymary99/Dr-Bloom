@@ -112,7 +112,7 @@ export default function BookPage() {
                         </span>
                         <span className="min-w-0">
                           <span className={`block truncate text-sm font-medium ${active ? "text-[var(--ink)]" : "text-[var(--ink)]"}`}>
-                            Dr. {doctor.user.name}
+                            {doctor.user.name}
                           </span>
                           <span className="block truncate text-xs text-[var(--muted)]">
                             {doctor.specialization ?? "General"}

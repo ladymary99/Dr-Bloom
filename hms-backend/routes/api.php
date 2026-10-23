@@ -6,7 +6,6 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\InventoryController;
 use App\Http\Controllers\Api\PatientController;
 use App\Http\Controllers\Api\PatientDocumentController;
-use App\Http\Controllers\Api\ProfileMediaController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\DepartmentController;
@@ -39,8 +38,8 @@ Route::post('/contact', [ContactController::class, 'store']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
-    Route::get('/me/avatar', [ProfileMediaController::class, 'avatar']);
-    Route::post('/me/avatar', [ProfileMediaController::class, 'updateAvatar']);
+    Route::get('/me/avatar', [AuthController::class, 'showAvatar']);
+    Route::post('/me/avatar', [AuthController::class, 'updateAvatar']);
     Route::get('/notifications', function () {
         return auth()->user()->notifications()
             ->latest()
