@@ -360,7 +360,7 @@ function PatientModal({
         {initial && canManagePatientFiles && <PatientVaccinations patientId={initial.id} />}
 
         {initial && canManagePatientFiles && (
-          <PatientFiles basePath={`/patients/${initial.id}`} patientName={`${initial.first_name} ${initial.last_name}`} canDelete />
+          <PatientFiles basePath={`/patients/${initial.id}`} canDelete />
         )}
 
         <div className="mt-6 flex items-center justify-between">
