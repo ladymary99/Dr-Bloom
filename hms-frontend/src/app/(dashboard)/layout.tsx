@@ -18,12 +18,15 @@ const navItems: NavItem[] = [
   { href: "/patients", label: "Patients", icon: "patients", perm: "view patients" },
   { href: "/appointments", label: "Appointments", icon: "appointments", perm: "manage appointments" },
   { href: "/doctor/queue", label: "My Queue", icon: "queue", perm: "conduct visits", notRole: "admin" },
+  { href: "/doctor/availability", label: "My Schedule", icon: "appointments", perm: "conduct visits", notRole: "admin" },
+  { href: "/messages", label: "Messages", icon: "mail", perm: "" },
   { href: "/my-department", label: "My Department", icon: "departments", role: "doctor" },
   { href: "/beds", label: "Wards & Beds", icon: "beds", perm: "" },
   { href: "/lab", label: "Laboratory", icon: "lab", perm: "manage lab" },
   { href: "/pharmacy", label: "Pharmacy", icon: "pharmacy", perm: "manage pharmacy" },
   { href: "/departments", label: "Departments", icon: "departments", perm: "manage departments" },
   { href: "/payments", label: "Payments", icon: "payments", perm: "manage payments" },
+  { href: "/claims", label: "Insurance Claims", icon: "reports", perm: "manage payments" },
 ];
 
 const adminItems: NavItem[] = [
@@ -32,6 +35,7 @@ const adminItems: NavItem[] = [
   { href: "/admin/contacts", label: "Contacts", icon: "mail", role: "admin" },
   { href: "/admin/users", label: "Users & Access", icon: "users", perm: "manage users" },
   { href: "/admin/audit-logs", label: "Audit Logs", icon: "audit", perm: "view audit logs" },
+  { href: "/admin/privacy-requests", label: "Privacy Requests", icon: "audit", role: "admin" },
 ];
 
 const subscribeToNothing = () => () => {};
@@ -224,7 +228,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           {/* Right: bell + ⋯ menu + avatar */}
           <div className="ml-auto flex flex-none items-center gap-1.5">
-            <NotificationBell />
+            <NotificationBell viewAllHref="/notifications" />
             {/* ⋯ menu */}
             <div className="relative">
               <button

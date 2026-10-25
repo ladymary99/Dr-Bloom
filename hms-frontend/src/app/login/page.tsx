@@ -49,6 +49,8 @@ export default function LoginPage() {
   const setAuth = useAuthStore((s) => s.setAuth);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
+  const [needsCode, setNeedsCode] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -57,12 +59,14 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
-      const { data } = await api.post("/login", { email, password });
+      const { data } = await api.post("/login", { email, password, code: code || undefined });
       setAuth(data);
       router.push(data.roles?.includes("patient") ? "/portal" : "/dashboard");
     } catch (requestError) {
-      const data = (requestError as { response?: { data?: { message?: string } } }).response?.data;
-      setError(data?.message ?? "Login failed. Check the server.");
+      const data = (requestError as { response?: { data?: { message?: string; two_factor_required?: boolean; errors?: Record<string, string[]> } } }).response?.data;
+      if (data?.two_factor_required) setNeedsCode(true);
+      const first = data?.errors ? Object.values(data.errors)[0]?.[0] : undefined;
+      setError(first ?? data?.message ?? "Login failed. Check the server.");
     } finally {
       setLoading(false);
     }
@@ -88,8 +92,10 @@ export default function LoginPage() {
 
       <form onSubmit={onSubmit} className="mt-8 space-y-5">
         <div>
-          <label className={labelCls}>Email</label>
+          <label htmlFor="login-email" className={labelCls}>Email</label>
           <input
+            id="login-email"
+            autoComplete="username"
             type="email"
             required
             value={email}
@@ -99,8 +105,10 @@ export default function LoginPage() {
           />
         </div>
         <div>
-          <label className={labelCls}>Password</label>
+          <label htmlFor="login-password" className={labelCls}>Password</label>
           <input
+            id="login-password"
+            autoComplete="current-password"
             type="password"
             required
             value={password}
@@ -110,8 +118,27 @@ export default function LoginPage() {
           />
         </div>
 
+        {needsCode && (
+          <div>
+            <label htmlFor="login-code" className={labelCls}>Authenticator code</label>
+            <input
+              id="login-code"
+              autoFocus
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              required
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+              placeholder="123456"
+              className={`${inputCls} tracking-[0.4em]`}
+            />
+            <p className="mt-1 text-xs text-[var(--muted)]">Open your authenticator app and enter the 6-digit code.</p>
+          </div>
+        )}
+
         {error && (
-          <div className="rounded-xl bg-[var(--primary-tint)]/25 px-4 py-2.5 text-sm text-[var(--primary)]">
+          <div role="alert" className="rounded-xl bg-[var(--primary-tint)]/25 px-4 py-2.5 text-sm text-[var(--primary)]">
             {error}
           </div>
         )}

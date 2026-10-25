@@ -24,6 +24,9 @@ class VisitController extends Controller
             'diagnosis' => 'nullable|string|max:2000',
             'notes' => 'nullable|string|max:2000',
             'type' => 'in:opd,ipd,emergency',
+            'share_diagnosis' => 'boolean',
+            'share_vitals' => 'boolean',
+            'share_notes' => 'boolean',
         ]);
 
         $doctorId = $request->user()->staffProfile?->id;
@@ -60,6 +63,10 @@ class VisitController extends Controller
                 'vitals' => $data['vitals'] ?? null,
                 'diagnosis' => $data['diagnosis'] ?? null,
                 'notes' => $data['notes'] ?? null,
+                // the doctor decides what the patient sees; notes are private unless shared on purpose
+                'share_diagnosis' => $data['share_diagnosis'] ?? true,
+                'share_vitals' => $data['share_vitals'] ?? true,
+                'share_notes' => $data['share_notes'] ?? false,
             ]);
 
             if (! empty($data['appointment_id'])) {
@@ -78,7 +85,32 @@ class VisitController extends Controller
             'user_agent' => $request->userAgent(),
         ]);
 
+        if ($patient = Patient::with('user')->find($data['patient_id'])) {
+            \App\Support\Notify::patient($patient, 'visit_summary',
+                'A new visit summary is available in your medical records.', '/portal/records',
+                'New visit summary available');
+        }
+
         return response()->json($visit, 201);
+    }
+
+    // PUT /api/visits/{visit}/sharing — doctor changes what the patient can see
+    public function updateSharing(Request $request, Visit $visit)
+    {
+        $user = $request->user();
+        if (! $user->hasRole('admin')) {
+            abort_if($visit->doctor_id !== $user->staffProfile?->id, 404);
+        }
+        $data = $request->validate([
+            'share_diagnosis' => 'sometimes|boolean',
+            'share_vitals' => 'sometimes|boolean',
+            'share_notes' => 'sometimes|boolean',
+        ]);
+        $old = $visit->only(array_keys($data));
+        $visit->update($data);
+        \App\Support\Audit::log($request, 'visit_sharing_changed', $visit, null, $old, $data);
+
+        return $visit->fresh();
     }
 
     // POST /api/visits/{visit}/prescriptions — e-prescription with items
@@ -131,6 +163,8 @@ class VisitController extends Controller
             abort_unless($hasAppointment || $hasVisit || $hasAdmission, 404);
             $query->where('doctor_id', $doctorId);
         }
+
+        \App\Support\Audit::log($request, 'viewed_history', $patient);
 
         return $query->with('doctor.user:id,name', 'prescription.items')
             ->orderByDesc('visited_at')->limit(20)->get();

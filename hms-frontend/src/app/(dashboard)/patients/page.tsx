@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/store/auth";
 import PatientFiles from "@/components/PatientFiles";
+import PatientVaccinations from "@/components/PatientVaccinations";
 
 type Patient = {
   id: string;
@@ -355,6 +356,8 @@ function PatientModal({
         {errors._form && (
           <div className="mt-4 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-700">{errors._form}</div>
         )}
+
+        {initial && canManagePatientFiles && <PatientVaccinations patientId={initial.id} />}
 
         {initial && canManagePatientFiles && (
           <PatientFiles basePath={`/patients/${initial.id}`} patientName={`${initial.first_name} ${initial.last_name}`} canDelete />

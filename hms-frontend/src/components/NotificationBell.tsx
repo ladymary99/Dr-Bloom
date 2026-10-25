@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useT } from "@/lib/i18n";
 import { api } from "@/lib/api";
 import Icon, { type IconName } from "@/components/icons";
 
@@ -20,16 +22,27 @@ function timeAgo(iso: string) {
   return `${Math.floor(s / 86400)}d ago`;
 }
 
-const TYPE_ICON: Record<string, IconName> = {
+export const TYPE_ICON: Record<string, IconName> = {
   appointment_booked: "appointments",
   appointment_reminder: "appointments",
+  appointment_confirmed: "appointments",
+  appointment_cancelled: "appointments",
+  appointment_rescheduled: "appointments",
+  new_message: "mail",
+  visit_summary: "patients",
+  result_ready: "lab",
+  vaccination: "patients",
+  payment_received: "payments",
+  claim_update: "payments",
+  data_request: "audit",
   new_patient: "patients",
   payment: "payments",
   announcement: "announcements",
 };
 
-export default function NotificationBell() {
+export default function NotificationBell({ viewAllHref }: { viewAllHref?: string }) {
   const router = useRouter();
+  const t = useT();
   const [items, setItems] = useState<Notif[]>([]);
   const [open, setOpen] = useState(false);
   const [error, setError] = useState("");
@@ -82,8 +95,10 @@ export default function NotificationBell() {
     <div className="relative">
       <button
         onClick={() => setOpen((o) => !o)}
-        title="Notifications"
-        aria-label="Notifications"
+        title={t("Notifications")}
+        aria-label={unread > 0 ? `${t("Notifications")} (${unread})` : t("Notifications")}
+        aria-haspopup="dialog"
+        aria-expanded={open}
         className={`relative flex h-10 w-10 flex-none items-center justify-center rounded-full text-[var(--muted)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[var(--primary-tint)]/30 hover:text-[var(--primary)] ${open ? "bg-[var(--primary-tint)]/40 text-[var(--primary)]" : ""}`}
       >
         <Icon name="bell" />
@@ -99,11 +114,11 @@ export default function NotificationBell() {
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
           <div className="animate-fade-up absolute right-0 top-12 z-50 w-80 overflow-hidden rounded-2xl border border-[var(--border)] bg-white shadow-xl shadow-[var(--primary)]/15">
             <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
-              <span className="font-heading text-sm font-semibold text-[var(--ink)]">Notifications</span>
+              <span className="font-heading text-sm font-semibold text-[var(--ink)]">{t("Notifications")}</span>
               {unread > 0 && (
                 <button onClick={markAllRead}
                   className="text-xs font-medium text-[var(--primary)] hover:underline">
-                  Mark all read
+                  {t("Mark all read")}
                 </button>
               )}
             </div>
@@ -111,7 +126,7 @@ export default function NotificationBell() {
             {error && <p role="alert" className="border-b border-red-100 bg-red-50 px-4 py-2 text-xs text-red-700">{error}</p>}
             <ul className="max-h-80 divide-y divide-[var(--border)]/60 overflow-y-auto">
               {items.length === 0 && (
-                <li className="px-4 py-8 text-center text-sm text-[var(--muted)]">No notifications yet.</li>
+                <li className="px-4 py-8 text-center text-sm text-[var(--muted)]">{t("No notifications yet.")}</li>
               )}
               {items.map((n) => (
                 <li key={n.id}>
@@ -129,6 +144,11 @@ export default function NotificationBell() {
                 </li>
               ))}
             </ul>
+            {viewAllHref && (
+              <Link href={viewAllHref} onClick={() => setOpen(false)} className="block border-t border-[var(--border)] px-4 py-2.5 text-center text-xs font-semibold text-[var(--primary)] hover:bg-[var(--primary-tint)]/15">
+                {t("View all")}
+              </Link>
+            )}
           </div>
         </>
       )}

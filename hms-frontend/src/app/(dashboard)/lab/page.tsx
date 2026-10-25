@@ -4,9 +4,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
+import { apiError, downloadFile } from "@/lib/format";
 
 type LabTest = {
   id: number; test_name: string; status: string; result: string | null; notes: string | null;
+  category: "lab" | "imaging"; released_at: string | null; has_file: boolean; result_file_name: string | null;
   created_at: string; completed_at: string | null;
   patient: { mrn: string; first_name: string; last_name: string };
   doctor: { user: { name: string } } | null;
@@ -39,6 +41,32 @@ export default function LabPage() {
 
   useEffect(() => { load(tab).catch(() => {}); }, [tab, load]);
 
+  const [notice, setNotice] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+  const [uploading, setUploading] = useState(false);
+
+  async function release(t: LabTest) {
+    setNotice(null);
+    try {
+      await api.post(`/lab-tests/${t.id}/release`, { released: !t.released_at });
+      setNotice({ kind: "ok", text: t.released_at ? "Result hidden from the patient." : "Result released. The patient was notified." });
+      await load(tab);
+      setViewResult(null);
+    } catch (e) { setNotice({ kind: "err", text: apiError(e) }); }
+  }
+
+  async function attach(t: LabTest, file: File | undefined) {
+    if (!file) return;
+    setUploading(true); setNotice(null);
+    const fd = new FormData();
+    fd.append("file", file);
+    try {
+      const { data } = await api.post(`/lab-tests/${t.id}/file`, fd);
+      setNotice({ kind: "ok", text: "File attached." });
+      await load(tab);
+      setViewResult((cur) => (cur ? { ...cur, has_file: true, result_file_name: data.result_file_name } : cur));
+    } catch (e) { setNotice({ kind: "err", text: apiError(e) }); } finally { setUploading(false); }
+  }
+
   async function setStatus(t: LabTest, status: string, result?: string) {
     await api.put(`/lab-tests/${t.id}`, { status, ...(result !== undefined && { result }) });
     setResultFor(null);
@@ -47,6 +75,7 @@ export default function LabPage() {
 
   return (
     <div className="animate-fade-up">
+      {notice && <div role={notice.kind === "err" ? "alert" : "status"} className={`mb-4 rounded-2xl border px-4 py-3 text-sm ${notice.kind === "err" ? "border-red-200 bg-red-50 text-red-800" : "border-emerald-200 bg-emerald-50 text-emerald-900"}`}>{notice.text}</div>}
       <div className="mb-8">
         <h1 className="font-heading text-3xl font-bold tracking-tight text-[var(--ink)]">Laboratory</h1>
         <p className="mt-1 text-sm text-[var(--muted)]">{tests ? `${tests.length} tests in view` : "Loading…"} — ordered by doctors, newest first.</p>
@@ -108,7 +137,7 @@ export default function LabPage() {
             <tbody>
               {tests.map((t) => (
                 <tr key={t.id} className="border-b border-[var(--border)]/60 transition last:border-0 hover:bg-[var(--primary-tint)]/10">
-                  <td className="px-6 py-3 font-medium text-[var(--ink)]">{t.test_name}</td>
+                  <td className="px-6 py-3 font-medium text-[var(--ink)]">{t.test_name}{t.category === "imaging" && <span className="ml-2 rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-900">Imaging</span>}</td>
                   <td className="px-6 py-3">
                     <div className="font-medium text-[var(--ink)]">{t.patient.first_name} {t.patient.last_name}</div>
                     <div className="text-xs font-medium text-[var(--primary)]">{t.patient.mrn}</div>
@@ -117,6 +146,7 @@ export default function LabPage() {
                   <td className="px-6 py-3 tabular-nums text-[var(--muted)]">{new Date(t.created_at).toLocaleString()}</td>
                   <td className="px-6 py-3">
                     <span className={`rounded-full px-3 py-1 text-xs font-semibold capitalize ${pill[t.status]}`}>{t.status.replace("_", " ")}</span>
+                    {t.status === "completed" && <span className={`ml-2 text-[11px] font-semibold ${t.released_at ? "text-emerald-800" : "text-amber-800"}`}>{t.released_at ? "Visible to patient" : "Hidden from patient"}</span>}
                   </td>
                   <td className="px-6 py-3">
                     <div className="flex justify-end gap-3">
@@ -133,6 +163,11 @@ export default function LabPage() {
                       {t.status === "completed" && (
                         <button onClick={() => setViewResult(t)} className="text-xs font-medium text-emerald-700 transition hover:underline">
                           View result
+                        </button>
+                      )}
+                      {t.status === "completed" && (
+                        <button onClick={() => release(t)} className="text-xs font-medium text-[var(--primary)] transition hover:underline">
+                          {t.released_at ? "Hide" : "Release"}
                         </button>
                       )}
                       {["ordered", "in_progress"].includes(t.status) && (
@@ -158,7 +193,19 @@ export default function LabPage() {
               {viewResult.patient.first_name} {viewResult.patient.last_name} · completed {viewResult.completed_at ? new Date(viewResult.completed_at).toLocaleString() : "—"}
             </p>
             <div className="mt-4 whitespace-pre-wrap rounded-2xl bg-emerald-50 p-4 text-sm text-[var(--ink)]">{viewResult.result ?? "—"}</div>
-            <div className="mt-6 flex justify-end">
+            <div className="mt-4 rounded-2xl border border-[var(--border)] p-4 text-sm">
+              <p className="mb-2 font-semibold text-[var(--ink)]">Report file (PDF or image)</p>
+              {viewResult.has_file && (
+                <button onClick={() => downloadFile(api, `/lab-tests/${viewResult.id}/file`, viewResult.result_file_name ?? "result").catch((e) => setNotice({ kind: "err", text: apiError(e) }))} className="mb-2 block text-[var(--primary)] underline">
+                  {viewResult.result_file_name ?? "Download file"}
+                </button>
+              )}
+              <label htmlFor="lab-file" className="sr-only">Attach report file</label>
+              <input id="lab-file" type="file" accept=".pdf,.jpg,.jpeg,.png" disabled={uploading} onChange={(e) => attach(viewResult, e.target.files?.[0])} className="block w-full text-xs file:mr-3 file:rounded-lg file:border-0 file:bg-[var(--primary)] file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white" />
+              <p className="mt-1 text-xs text-[var(--muted)]">Stored privately and checked on upload. The patient only sees it after you release the result.</p>
+            </div>
+            <div className="mt-6 flex justify-end gap-2">
+              <button onClick={() => release(viewResult)} className="rounded-full bg-[var(--primary)] px-5 py-2 text-sm font-semibold text-white">{viewResult.released_at ? "Hide from patient" : "Release to patient"}</button>
               <button onClick={() => setViewResult(null)} className="rounded-full border border-[var(--border)] px-5 py-2 text-sm font-medium text-[var(--muted)] transition hover:bg-[var(--primary-tint)]/10 hover:text-[var(--ink)]">Close</button>
             </div>
           </div>

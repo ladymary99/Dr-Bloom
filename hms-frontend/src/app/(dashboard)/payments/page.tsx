@@ -3,6 +3,7 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 
 import { useCallback, useEffect, useState } from "react";
+import InvoiceManager from "@/components/InvoiceManager";
 import { api } from "@/lib/api";
 
 type Dept = { id: number; name: string };
@@ -36,7 +37,9 @@ type Summary = {
 
 const statusPill: Record<string, string> = {
   paid: "bg-emerald-100 text-emerald-700",
-  pending: "bg-amber-100 text-amber-700",
+  pending: "bg-amber-100 text-amber-900",
+  partial: "bg-orange-100 text-orange-900",
+  refunded: "bg-slate-200 text-slate-800",
   cancelled: "bg-red-100 text-red-600",
 };
 
@@ -70,6 +73,7 @@ export default function PaymentsPage() {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [manageId, setManageId] = useState<number | null>(null);
 
   const load = useCallback(async (p: number, d: string, s: string) => {
     setLoading(true);
@@ -176,6 +180,8 @@ export default function PaymentsPage() {
               className="rounded-full border border-[var(--border)] bg-white px-4 py-2 text-sm capitalize text-[var(--ink)] outline-none transition focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--primary-tint)]/30">
               <option value="">All statuses</option>
               <option value="pending">Pending</option>
+              <option value="partial">Partial</option>
+              <option value="refunded">Refunded</option>
               <option value="paid">Paid</option>
               <option value="cancelled">Cancelled</option>
             </select>
@@ -259,7 +265,10 @@ export default function PaymentsPage() {
                     <span className={`rounded-full px-3 py-1 text-xs font-semibold capitalize ${statusPill[inv.status]}`}>{inv.status}</span>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    {inv.status === "pending" && <MarkPaid id={inv.id} onDone={() => { load(page, deptId, status); loadSummary(); }} />}
+                    <div className="flex items-center justify-end gap-2">
+                      {inv.status === "pending" && <MarkPaid id={inv.id} onDone={() => { load(page, deptId, status); loadSummary(); }} />}
+                      <button onClick={() => setManageId(inv.id)} className="rounded-full border border-[var(--border)] px-3 py-1 text-xs font-semibold text-[var(--primary)] transition hover:bg-[var(--primary-tint)]/25" aria-label={`Manage ${inv.invoice_number}`}>Manage</button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -287,6 +296,7 @@ export default function PaymentsPage() {
           onSaved={() => { setShowModal(false); setPage(1); load(1, deptId, status); loadSummary(); }}
         />
       )}
+      <InvoiceManager invoiceId={manageId} onClose={() => setManageId(null)} onChanged={() => { load(page, deptId, status); loadSummary(); }} />
     </div>
   );
 }

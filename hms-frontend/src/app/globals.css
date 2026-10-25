@@ -4,7 +4,7 @@
   --primary: #021233;
   --primary-tint: #B2C2EA;
   --ink: #0f172a;
-  --muted: #6684b8;
+  --muted: #3f5a8c; /* 5.0:1 on --app-bg, 6.9:1 on white (was 2.7:1 / 3.8:1) */
   --border: #e2e8f0;
   --app-bg: #DBDBE3;
   --font-heading: var(--font-sora), ui-sans-serif, system-ui, sans-serif;
@@ -123,4 +123,17 @@ body {
 .hero-anim {
   opacity: 0;
   animation: hero-up 1.1s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+/* ===== Accessibility & print ===== */
+:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 6px; }
+.skip-link { position: absolute; left: -9999px; top: 0; z-index: 100; background: var(--primary); color: #fff; padding: .75rem 1rem; border-radius: 0 0 .75rem 0; }
+.skip-link:focus { left: 0; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+}
+@media print {
+  body { background: #fff !important; }
+  .no-print, header { display: none !important; }
+  main { padding: 0 !important; }
+  .print-sheet { box-shadow: none !important; border: none !important; }
 }

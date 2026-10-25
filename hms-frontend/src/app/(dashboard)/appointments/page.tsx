@@ -294,8 +294,8 @@ function BookModal({ onClose, onBooked }: { onClose: () => void; onBooked: () =>
         patient_id: patient.id,
         doctor_id: Number(doctorId),
         department_id: doctor?.department_id ?? null,
-        appointment_at: new Date(when).toISOString(),
-        duration_minutes: 30,
+        // clinic wall-clock time, no timezone conversion; duration defaults to the doctor's slot length
+        appointment_at: when.length === 16 ? `${when}:00` : when,
         reason: reason || undefined,
       });
       onBooked();

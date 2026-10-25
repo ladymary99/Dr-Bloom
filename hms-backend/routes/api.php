@@ -1,5 +1,14 @@
 <?php
 
+use App\Http\Controllers\Api\BillingController;
+use App\Http\Controllers\Api\DoctorAvailabilityController;
+use App\Http\Controllers\Api\MessageController;
+use App\Http\Controllers\Api\PortalBillingController;
+use App\Http\Controllers\Api\PortalPrivacyController;
+use App\Http\Controllers\Api\PortalProfileController;
+use App\Http\Controllers\Api\PortalRecordsController;
+use App\Http\Controllers\Api\TwoFactorController;
+use App\Http\Controllers\Api\VaccinationController;
 use App\Http\Controllers\Api\AppointmentController;
 use App\Http\Controllers\Api\Admin\StaffProfileController;
 use App\Http\Controllers\Api\AuthController;
@@ -30,6 +39,7 @@ use App\Http\Controllers\Api\PublicController;
 use App\Http\Controllers\ContactController;
    
 
+Route::post('/webhooks/stripe', [PortalBillingController::class, 'stripeWebhook']); // verified by Stripe-Signature
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1'); // 5 tries/minute
 Route::post('/register/patient', [AuthController::class, 'registerPatient'])->middleware('throttle:5,1');
 Route::post('/patient/register', [AuthController::class, 'registerPatient'])->middleware('throttle:10,1');
@@ -43,7 +53,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/notifications', function () {
         return auth()->user()->notifications()
             ->latest()
-            ->limit(20)
+            ->limit(min(max((int) request('limit', 20), 1), 100))
             ->get(['id', 'type', 'data', 'read_at', 'created_at']);
     });
     Route::post('/notifications/read-all', function () {
@@ -151,19 +161,108 @@ Route::get('/public/doctors', [PublicController::class, 'doctors']);
     Route::put('/appointments/{appointment}', [AppointmentController::class, 'update'])->middleware('permission:manage appointments');
 });
 
+// ───────────── staff-side features that feed the patient portal ─────────────
+Route::middleware('auth:sanctum')->group(function () {
+    // 2FA (any role)
+    Route::post('/2fa/setup', [TwoFactorController::class, 'setup'])->middleware('throttle:10,1');
+    Route::post('/2fa/confirm', [TwoFactorController::class, 'confirm'])->middleware('throttle:10,1');
+    Route::post('/2fa/disable', [TwoFactorController::class, 'disable'])->middleware('throttle:10,1');
+
+    // secure messaging (patients and staff share the endpoints; the controller scopes by role)
+    Route::get('/messages', [MessageController::class, 'index']);
+    Route::post('/messages', [MessageController::class, 'store'])->middleware('throttle:20,1');
+    Route::get('/messages/{thread}', [MessageController::class, 'show']);
+    Route::post('/messages/{thread}/reply', [MessageController::class, 'reply'])->middleware('throttle:30,1');
+
+    // doctor schedule
+    Route::middleware('permission:conduct visits')->group(function () {
+        Route::get('/doctor/availability', [DoctorAvailabilityController::class, 'show']);
+        Route::put('/doctor/availability', [DoctorAvailabilityController::class, 'update']);
+        Route::post('/doctor/time-off', [DoctorAvailabilityController::class, 'addTimeOff']);
+        Route::delete('/doctor/time-off/{timeOff}', [DoctorAvailabilityController::class, 'removeTimeOff']);
+        Route::put('/visits/{visit}/sharing', [VisitController::class, 'updateSharing']);
+    });
+    Route::get('/admin/doctor-availability', [DoctorAvailabilityController::class, 'show'])->middleware('role:admin');
+    Route::put('/admin/doctor-availability', [DoctorAvailabilityController::class, 'update'])->middleware('role:admin');
+
+    // results: upload (lab), release/view (lab or doctor)
+    Route::post('/lab-tests/{labTest}/file', [LabTestController::class, 'uploadFile'])->middleware('permission:manage lab');
+    Route::get('/lab-tests/{labTest}/file', [LabTestController::class, 'downloadFile'])->middleware('permission:manage lab|conduct visits');
+    Route::post('/lab-tests/{labTest}/release', [LabTestController::class, 'release'])->middleware('permission:manage lab|conduct visits');
+
+    // vaccinations
+    Route::get('/patients/{patient}/vaccinations', [VaccinationController::class, 'index'])->middleware('permission:view patients');
+    Route::post('/patients/{patient}/vaccinations', [VaccinationController::class, 'store'])->middleware('permission:conduct visits');
+    Route::delete('/patients/{patient}/vaccinations/{vaccination}', [VaccinationController::class, 'destroy'])->middleware('permission:conduct visits');
+
+    // billing ledger
+    Route::middleware('permission:manage payments')->group(function () {
+        Route::get('/invoices/{invoice}', [BillingController::class, 'show']);
+        Route::post('/invoices/{invoice}/items', [BillingController::class, 'addItem']);
+        Route::post('/invoices/{invoice}/payments', [BillingController::class, 'recordPayment'])->middleware('throttle:60,1');
+        Route::get('/claims', [BillingController::class, 'claims']);
+        Route::post('/invoices/{invoice}/claims', [BillingController::class, 'storeClaim']);
+        Route::put('/claims/{claim}', [BillingController::class, 'updateClaim']);
+    });
+    Route::post('/payments/{payment}/refund', [BillingController::class, 'refund'])->middleware('role:admin');
+
+    // GDPR-style requests (admin)
+    Route::get('/admin/data-requests', [PortalPrivacyController::class, 'adminIndex'])->middleware('role:admin');
+    Route::put('/admin/data-requests/{dataRequest}', [PortalPrivacyController::class, 'adminUpdate'])->middleware('role:admin');
+});
+
+
 Route::middleware(['auth:sanctum', 'role:patient'])->prefix('portal')->group(function () {
+    // dashboard + profile
     Route::get('/me', [PortalController::class, 'me']);
     Route::get('/announcements', [AnnouncementController::class, 'portal']);
+    Route::get('/profile', [PortalProfileController::class, 'show']);
+    Route::put('/profile', [PortalProfileController::class, 'update']);
+    Route::put('/preferences', [PortalProfileController::class, 'preferences']);
+    Route::put('/email', [PortalProfileController::class, 'changeEmail'])->middleware('throttle:5,1');
+    Route::get('/consents', [PortalProfileController::class, 'consents']);
+    Route::post('/consents', [PortalProfileController::class, 'acceptConsent']);
     Route::get('/photo', [PatientDocumentController::class, 'myPhoto']);
     Route::post('/photo', [PatientDocumentController::class, 'updateMyPhoto']);
+
+    // booking
+    Route::get('/doctor-filters', [PortalController::class, 'doctorFilters']);
+    Route::get('/doctors', [PortalController::class, 'doctors']);
+    Route::get('/doctors/{doctor}', [PortalController::class, 'doctor']);
+    Route::get('/doctors/{doctor}/photo', [PortalController::class, 'doctorPhoto']);
+    Route::get('/doctors/{doctor}/slots', [PortalController::class, 'slots']);
+    Route::get('/appointments', [PortalController::class, 'appointments']);
+    Route::post('/appointments', [PortalController::class, 'book'])->middleware('throttle:15,1');
+    Route::put('/appointments/{appointment}/cancel', [PortalController::class, 'cancel']);
+    Route::put('/appointments/{appointment}/reschedule', [PortalController::class, 'reschedule'])->middleware('throttle:15,1');
+    Route::get('/appointments/{appointment}/ics', [PortalController::class, 'ics']);
+
+    // medical records
+    Route::get('/records', [PortalRecordsController::class, 'records']);
+    Route::get('/prescriptions', [PortalRecordsController::class, 'prescriptions']);
+    Route::get('/prescriptions/{prescription}', [PortalRecordsController::class, 'prescription']);
+    Route::get('/lab-tests', [PortalRecordsController::class, 'labTests']);
+    Route::get('/lab-tests/{labTest}/file', [PortalRecordsController::class, 'labFile']);
+    Route::get('/vaccinations', [PortalRecordsController::class, 'vaccinations']);
+
+    // documents (private disk, streamed through the API, never a public URL)
     Route::get('/documents', [PatientDocumentController::class, 'myDocuments']);
-    Route::post('/documents', [PatientDocumentController::class, 'storeForMe']);
+    Route::post('/documents', [PatientDocumentController::class, 'storeForMe'])->middleware('throttle:20,1');
     Route::get('/documents/{document}', [PatientDocumentController::class, 'downloadForMe']);
     Route::delete('/documents/{document}', [PatientDocumentController::class, 'destroyForMe']);
-    Route::get('/appointments', [PortalController::class, 'appointments']);
-    Route::post('/appointments', [PortalController::class, 'book']);
-    Route::put('/appointments/{appointment}/cancel', [PortalController::class, 'cancel']);
-    Route::get('/records', [PortalController::class, 'records']);
-    Route::get('/invoices', [PortalController::class, 'invoices']);
-    Route::get('/lab-tests', [PortalController::class, 'labTests']);
+
+    // billing
+    Route::get('/invoices', [PortalBillingController::class, 'invoices']);
+    Route::get('/invoices/{invoice}', [PortalBillingController::class, 'invoice']);
+    Route::post('/invoices/{invoice}/pay', [PortalBillingController::class, 'pay'])->middleware('throttle:10,1');
+    Route::get('/payments/{payment}/receipt', [PortalBillingController::class, 'receipt']);
+    Route::get('/claims', [PortalBillingController::class, 'claims']);
+
+    // messaging helper (list of people the patient can write to)
+    Route::get('/care-team', [MessageController::class, 'careTeam']);
+
+    // privacy
+    Route::get('/privacy/requests', [PortalPrivacyController::class, 'requests']);
+    Route::post('/privacy/requests', [PortalPrivacyController::class, 'createRequest'])->middleware('throttle:5,1');
+    Route::get('/privacy/export', [PortalPrivacyController::class, 'export'])->middleware('throttle:5,10');
 });

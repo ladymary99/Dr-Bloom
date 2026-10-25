@@ -12,9 +12,10 @@ class PatientDocument extends Model
 
     protected $fillable = [
         'patient_id', 'uploaded_by', 'title', 'original_name', 'file_path', 'mime_type', 'size',
+        'category', 'scan_status', 'scanned_at', 'sha256',
     ];
 
-    protected $hidden = ['file_path'];
+    protected $hidden = ['file_path', 'sha256'];
 
     public function patient(): BelongsTo
     {

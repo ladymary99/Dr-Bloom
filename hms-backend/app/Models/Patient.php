@@ -16,6 +16,10 @@ class Patient extends Model
     protected $fillable = [
         'user_id', 'mrn', 'first_name', 'last_name', 'date_of_birth', 'gender',
         'phone', 'email', 'address', 'blood_type', 'allergies', 'national_id', 'profile_photo_path',
+        'emergency_contact_name', 'emergency_contact_phone', 'emergency_contact_relation',
+        'chronic_conditions', 'current_medications',
+        'insurance_provider', 'insurance_policy_number', 'insurance_group_number', 'insurance_expires_on',
+        'preferred_language', 'notification_prefs', 'privacy_accepted_at', 'privacy_policy_version',
     ];
 
     protected $hidden = ['national_id', 'profile_photo_path'];
@@ -24,15 +28,23 @@ class Patient extends Model
         'date_of_birth' => 'date',
         'phone' => 'encrypted',
         'national_id' => 'encrypted',
+        'emergency_contact_phone' => 'encrypted',
+        'insurance_policy_number' => 'encrypted',
+        'insurance_expires_on' => 'date',
+        'notification_prefs' => 'array',
+        'privacy_accepted_at' => 'datetime',
     ];
 
     // Auto-generate MRN if not provided
-protected static function booted(): void
-{
-    static::creating(function (Patient $patient) {
-        $patient->mrn ??= 'MRN-' . now()->format('Y') . '-' . strtoupper(\Illuminate\Support\Str::random(6));
-    });
-}
+// MRN is always generated server-side from a database sequence: unique, never reused.
+    protected static function booted(): void
+    {
+        static::creating(function (Patient $patient) {
+            $patient->mrn ??= 'MRN-' . now()->format('Y') . '-' .
+                str_pad((string) \Illuminate\Support\Facades\DB::scalar("select nextval('patient_mrn_seq')"), 6, '0', STR_PAD_LEFT);
+        });
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
@@ -70,5 +82,20 @@ protected static function booted(): void
     public function documents(): HasMany
     {
         return $this->hasMany(PatientDocument::class);
+    }
+
+    public function vaccinations(): HasMany
+    {
+        return $this->hasMany(Vaccination::class);
+    }
+
+    public function consents(): HasMany
+    {
+        return $this->hasMany(Consent::class);
+    }
+
+    public function messageThreads(): HasMany
+    {
+        return $this->hasMany(MessageThread::class);
     }
 }

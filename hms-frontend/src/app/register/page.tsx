@@ -15,6 +15,7 @@ const initialForm = {
   gender: "male",
   password: "",
   password_confirmation: "",
+  accept_privacy: false,
 };
 
 /* ---------- split-screen auth shell — same as login ---------- */
@@ -215,6 +216,19 @@ export default function RegisterPage() {
             onChange={(event) => setForm({ ...form, password_confirmation: event.target.value })}
           />
         </div>
+
+        <label className="flex cursor-pointer items-start gap-3 text-sm text-[var(--ink)]">
+          <input
+            type="checkbox"
+            required
+            checked={form.accept_privacy}
+            onChange={(event) => setForm({ ...form, accept_privacy: event.target.checked })}
+            className="mt-1 h-4 w-4"
+          />
+          <span>
+            I agree that Dr&apos;Bloom may store and process my health information to provide my care, as described in the privacy policy. I can download or request deletion of my data at any time.
+          </span>
+        </label>
 
         {error && (
           <p role="alert" className="rounded-xl bg-[var(--primary-tint)]/25 px-4 py-2.5 text-sm text-[var(--primary)]">

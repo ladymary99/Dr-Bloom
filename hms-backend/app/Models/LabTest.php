@@ -9,10 +9,20 @@ class LabTest extends Model
 {
     protected $fillable = [
         'patient_id', 'visit_id', 'doctor_id', 'test_name',
-        'status', 'result', 'notes', 'completed_at',
+        'status', 'result', 'notes', 'completed_at', 'category',
+        'result_file_path', 'result_file_name', 'result_file_size', 'released_at',
     ];
 
-    protected $casts = ['completed_at' => 'datetime'];
+    protected $hidden = ['result_file_path'];
+
+    protected $appends = ['has_file'];
+
+    protected $casts = ['completed_at' => 'datetime', 'released_at' => 'datetime'];
+
+    public function getHasFileAttribute(): bool
+    {
+        return (bool) $this->result_file_path;
+    }
 
     public function patient(): BelongsTo
     {

@@ -1,155 +1,171 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import Link from "next/link";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { api } from "@/lib/api";
+import { apiError, fmtShortDate, money } from "@/lib/format";
+import { useT } from "@/lib/i18n";
+import { useFetch } from "@/hooks/useFetch";
+import { EmptyState, ErrorState, ListSkeleton, Modal, Notice, PageHeader, StatusBadge, Tabs, btnGhost, btnPrimary, cardCls } from "@/components/ui";
 
+type Item = { id: number; description: string; quantity: string; unit_price: string; total: string };
+type Pay = { id: string; amount: string; method: string; status: string; paid_at: string | null; receipt_number: string | null };
+type Claim = { id: number; provider: string; claim_number: string | null; amount_claimed: string; amount_approved: string | null; status: string; submitted_at: string | null; invoice?: { invoice_number: string; description: string } | null };
 type Invoice = {
-  id: number;
-  invoice_number: string;
-  description: string;
-  amount: string;
-  status: string;
-  created_at: string;
-  payment_method: string | null;
-  department: { name: string } | null;
-  doctor: { user: { name: string } } | null;
+  id: number; invoice_number: string; description: string; amount: string; amount_paid: string; balance: string; status: string;
+  created_at: string; due_date: string | null; items: Item[]; payments: Pay[]; claims: Claim[];
+  doctor?: { user?: { name: string } } | null; department?: { name: string } | null;
 };
 
-const cardCls =
-  "rounded-3xl border border-[var(--border)] bg-white shadow-sm overflow-hidden";
+const METHOD: Record<string, string> = { cash: "Cash", card: "Card", stripe: "Online card", bank_transfer: "Bank transfer", insurance: "Insurance", other: "Other" };
 
-const statusPill: Record<string, string> = {
-  paid: "bg-emerald-100 text-emerald-700",
-  pending: "bg-amber-100 text-amber-700",
-  cancelled: "bg-red-100 text-red-600",
-};
-
-const iconProps = {
-  fill: "none", stroke: "currentColor", strokeWidth: 1.7,
-  strokeLinecap: "round", strokeLinejoin: "round", viewBox: "0 0 24 24",
-} as const;
+function Banner() {
+  const sp = useSearchParams();
+  if (sp.get("paid")) return <div className="mb-4"><Notice kind="success">Thank you! Your payment for {sp.get("paid")} is being confirmed. It may take a few seconds to show as paid.</Notice></div>;
+  if (sp.get("cancelled")) return <div className="mb-4"><Notice kind="warn">Payment for {sp.get("cancelled")} was cancelled. You have not been charged.</Notice></div>;
+  return null;
+}
 
 export default function BillingPage() {
-  const [invoices, setInvoices] = useState<Invoice[] | null>(null);
-  const [error, setError] = useState("");
+  const t = useT();
+  const inv = useFetch<Invoice[]>("/portal/invoices");
+  const claims = useFetch<Claim[]>("/portal/claims");
+  const [tab, setTab] = useState<"invoices" | "payments" | "claims">("invoices");
+  const [open, setOpen] = useState<Invoice | null>(null);
+  const [payErr, setPayErr] = useState("");
+  const [paying, setPaying] = useState(false);
 
-  useEffect(() => {
-    api.get("/portal/invoices").then((response) => setInvoices(response.data)).catch(() => setError("Could not load billing information."));
-  }, []);
+  const list = inv.data ?? [];
+  const owed = list.filter((i) => ["pending", "partial"].includes(i.status)).reduce((s, i) => s + Number(i.balance), 0);
+  const payments = list.flatMap((i) => i.payments.filter((p) => p.status === "succeeded").map((p) => ({ ...p, inv: i }))).sort((a, b) => (b.paid_at ?? "").localeCompare(a.paid_at ?? ""));
 
-  const pendingTotal = invoices?.filter((i) => i.status === "pending").reduce((sum, i) => sum + Number(i.amount), 0) ?? 0;
-  const paidTotal = invoices?.filter((i) => i.status === "paid").reduce((sum, i) => sum + Number(i.amount), 0) ?? 0;
+  async function pay(i: Invoice) {
+    setPaying(true);
+    setPayErr("");
+    try {
+      const { data } = await api.post(`/portal/invoices/${i.id}/pay`);
+      window.location.assign(data.url); // Stripe-hosted checkout
+    } catch (e) {
+      setPayErr(apiError(e, "Could not start the payment."));
+      setPaying(false);
+    }
+  }
+
+  const canPay = (i: Invoice) => ["pending", "partial"].includes(i.status) && Number(i.balance) > 0;
 
   return (
-    <div className="animate-fade-up w-full">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="font-heading text-3xl font-bold tracking-tight text-[var(--ink)]">Billing</h1>
-        <p className="mt-1 text-sm text-[var(--muted)]">Invoices and payments on your account.</p>
+    <div className="mx-auto max-w-4xl">
+      <PageHeader title={t("Billing")} subtitle="Invoices, receipts and insurance claims." />
+      <Suspense fallback={null}><Banner /></Suspense>
+
+      <div className="mb-5 grid gap-3 sm:grid-cols-3">
+        <div className={`${cardCls} p-5`}><p className="text-xs font-semibold text-[var(--muted)]">Amount due</p><p className="font-heading text-2xl font-semibold">{money(owed)}</p></div>
+        <div className={`${cardCls} p-5`}><p className="text-xs font-semibold text-[var(--muted)]">Unpaid invoices</p><p className="font-heading text-2xl font-semibold">{list.filter((i) => canPay(i)).length}</p></div>
+        <div className={`${cardCls} p-5`}><p className="text-xs font-semibold text-[var(--muted)]">Total paid</p><p className="font-heading text-2xl font-semibold">{money(list.reduce((s, i) => s + Number(i.amount_paid), 0))}</p></div>
       </div>
 
-      {/* Summary cards */}
-      {invoices && invoices.length > 0 && (
-        <div className="mb-6 grid grid-cols-2 gap-4">
-          <div className={`${cardCls} !p-5`}>
-            <span className="text-[var(--primary)]" aria-hidden>
-              <svg {...iconProps} className="h-5 w-5"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M15 9.5c0-1-1.3-1.5-3-1.5s-3 .6-3 1.75c0 2.5 6 1.25 6 3.75 0 1.15-1.3 1.75-3 1.75s-3-.5-3-1.5"/></svg>
-            </span>
-            <div className="mt-2 font-heading text-2xl font-bold tabular-nums text-[var(--ink)]">
-              ${paidTotal.toFixed(2)}
-            </div>
-            <div className="mt-0.5 text-xs text-[var(--muted)]">Total paid</div>
-          </div>
-          <div className={`${cardCls} !p-5`}>
-            <span className="text-amber-600" aria-hidden>
-              <svg {...iconProps} className="h-5 w-5"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
-            </span>
-            <div className={`mt-2 font-heading text-2xl font-bold tabular-nums ${pendingTotal > 0 ? "text-amber-600" : "text-[var(--ink)]"}`}>
-              ${pendingTotal.toFixed(2)}
-            </div>
-            <div className="mt-0.5 text-xs text-[var(--muted)]">Outstanding balance</div>
-          </div>
-        </div>
-      )}
+      <div className="mb-4">
+        <Tabs label="Billing" value={tab} onChange={setTab} tabs={[{ id: "invoices", label: t("Invoices"), count: list.length }, { id: "payments", label: "Payment history" }, { id: "claims", label: t("Insurance claims"), count: claims.data?.length }]} />
+      </div>
 
-      {/* Outstanding balance alert */}
-      {pendingTotal > 0 && (
-        <div className="mb-6 flex items-start gap-2.5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
-          <svg {...iconProps} className="mt-0.5 h-4 w-4 flex-none text-amber-600"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3M12 9v4M12 17h.01"/></svg>
-          <p className="text-sm text-amber-800">
-            Outstanding balance: <b>${pendingTotal.toFixed(2)}</b>. Please pay at the reception desk.
-          </p>
-        </div>
-      )}
+      <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
+        {tab === "invoices" && (inv.error ? <ErrorState message={inv.error} onRetry={inv.reload} />
+          : inv.loading && !inv.data ? <ListSkeleton rows={3} />
+          : list.length === 0 ? <EmptyState title="No invoices yet" hint="Your invoices appear here after you book or attend an appointment." action={{ label: t("Book appointment"), href: "/portal/book" }} />
+          : (
+            <ul className="space-y-3">
+              {list.map((i) => (
+                <li key={i.id} className={`${cardCls} flex flex-wrap items-center gap-4 p-5`}>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2"><h2 className="font-heading text-base font-semibold">{i.invoice_number}</h2><StatusBadge status={i.status} /></div>
+                    <p className="truncate text-sm text-[var(--muted)]">{i.description} · {fmtShortDate(i.created_at)}</p>
+                  </div>
+                  <div className="text-right"><p className="font-heading text-lg font-semibold">{money(i.amount)}</p>{i.status === "partial" && <p className="text-xs text-[var(--muted)]">{t("Balance")}: {money(i.balance)}</p>}</div>
+                  <div className="flex gap-2">
+                    <button onClick={() => { setPayErr(""); setOpen(i); }} className={btnGhost}>Details</button>
+                    {canPay(i) && <button onClick={() => pay(i)} disabled={paying} className={btnPrimary}>{t("Pay online")}</button>}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ))}
+        {payErr && !open && <div className="mt-3"><Notice kind="error">{payErr}</Notice></div>}
 
-      {error && (
-        <div className="mb-6 flex items-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          <svg {...iconProps} className="h-4 w-4 flex-none"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
-          {error}
-        </div>
-      )}
-
-      {/* Invoices table */}
-      <div className={cardCls}>
-        <div className="border-b border-[var(--border)] bg-[var(--primary-tint)]/10 px-6 py-4">
-          <h2 className="font-heading font-semibold text-[var(--ink)]">Invoices ({invoices?.length ?? "—"})</h2>
-        </div>
-        {!invoices ? (
-          <div className="space-y-3 p-6">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="h-10 animate-pulse rounded-xl bg-[var(--primary-tint)]/15" />
-            ))}
-          </div>
-        ) : invoices.length === 0 ? (
-          <div className="p-12 text-center">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[var(--primary-tint)]/20">
-              <svg {...iconProps} className="h-5 w-5 text-[var(--primary)]"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
+        {tab === "payments" && (payments.length === 0 ? <EmptyState title="No payments yet" hint="Receipts for your payments will be listed here." />
+          : (
+            <div className={`${cardCls} overflow-x-auto`}>
+              <table className="w-full min-w-[34rem] text-left text-sm">
+                <caption className="sr-only">Payment history</caption>
+                <thead className="border-b border-[var(--border)] text-xs text-[var(--muted)]"><tr><th scope="col" className="px-5 py-3">Date</th><th scope="col" className="px-3 py-3">Invoice</th><th scope="col" className="px-3 py-3">Method</th><th scope="col" className="px-3 py-3 text-right">Amount</th><th scope="col" className="px-5 py-3 text-right"><span className="sr-only">Receipt</span></th></tr></thead>
+                <tbody className="divide-y divide-[var(--border)]">
+                  {payments.map((p) => (
+                    <tr key={p.id}>
+                      <td className="px-5 py-3">{fmtShortDate(p.paid_at)}</td><td className="px-3 py-3">{p.inv.invoice_number}</td>
+                      <td className="px-3 py-3">{METHOD[p.method] ?? p.method}</td><td className="px-3 py-3 text-right font-semibold">{money(p.amount)}</td>
+                      <td className="px-5 py-3 text-right"><Link href={`/portal/receipts/${p.id}`} className="font-semibold text-[var(--primary)] underline-offset-2 hover:underline">{t("Receipt")} {p.receipt_number}</Link></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-            <p className="mt-3 text-sm text-[var(--muted)]">No bills have been added to your account.</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-155 text-sm">
-              <thead>
-                <tr className="border-b border-[var(--border)] text-left text-xs font-semibold text-[var(--muted)]">
-                  <th className="px-6 py-3.5">Invoice</th>
-                  <th className="px-6 py-3.5">Description</th>
-                  <th className="px-6 py-3.5 text-right">Amount</th>
-                  <th className="px-6 py-3.5">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {invoices.map((invoice) => (
-                  <tr key={invoice.id} className="border-b border-[var(--border)]/60 transition last:border-0 hover:bg-[var(--primary-tint)]/10">
-                    <td className="px-6 py-4">
-                      <div className="font-medium text-[var(--primary)]">{invoice.invoice_number}</div>
-                      <div className="text-xs tabular-nums text-[var(--muted)]">{new Date(invoice.created_at).toLocaleDateString()}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-[var(--ink)]">{invoice.description}</div>
-                      <div className="text-xs text-[var(--muted)]">
-                        {invoice.department?.name ?? ""}
-                        {invoice.doctor ? ` · Dr. ${invoice.doctor.user.name}` : ""}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-right font-semibold tabular-nums text-[var(--ink)]">
-                      ${Number(invoice.amount).toFixed(2)}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`rounded-full px-3 py-1 text-xs font-semibold capitalize ${statusPill[invoice.status] ?? "bg-[var(--primary-tint)]/15 text-[var(--muted)]"}`}>
-                        {invoice.status}
-                      </span>
-                      {invoice.payment_method && (
-                        <div className="mt-1 text-xs capitalize text-[var(--muted)]">{invoice.payment_method}</div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          ))}
+
+        {tab === "claims" && (claims.error ? <ErrorState message={claims.error} onRetry={claims.reload} />
+          : claims.loading && !claims.data ? <ListSkeleton rows={2} />
+          : (claims.data ?? []).length === 0 ? <EmptyState title="No insurance claims" hint="If the clinic submits a claim to your insurer for a visit, you can follow its status here. Keep your insurance details up to date in your profile." action={{ label: "Update insurance details", href: "/portal/profile" }} />
+          : (
+            <ul className="space-y-3">
+              {claims.data?.map((c) => (
+                <li key={c.id} className={`${cardCls} flex flex-wrap items-center gap-4 p-5`}>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2"><h2 className="font-heading text-base font-semibold">{c.provider}</h2><StatusBadge status={c.status} kind="claim" /></div>
+                    <p className="text-sm text-[var(--muted)]">{c.invoice?.invoice_number} · {c.claim_number ? `Claim ${c.claim_number} · ` : ""}submitted {fmtShortDate(c.submitted_at)}</p>
+                  </div>
+                  <dl className="text-right text-sm"><dt className="text-xs text-[var(--muted)]">Claimed</dt><dd className="font-semibold">{money(c.amount_claimed)}</dd>{c.amount_approved && <><dt className="mt-1 text-xs text-[var(--muted)]">Approved</dt><dd className="font-semibold text-emerald-800">{money(c.amount_approved)}</dd></>}</dl>
+                </li>
+              ))}
+            </ul>
+          ))}
+      </div>
+
+      <Modal open={!!open} onClose={() => setOpen(null)} title={open ? `Invoice ${open.invoice_number}` : ""} wide
+        footer={open && <><button onClick={() => setOpen(null)} className={btnGhost}>{t("Close")}</button>{canPay(open) && <button onClick={() => pay(open)} disabled={paying} className={btnPrimary}>{paying ? "Redirecting…" : `${t("Pay online")} ${money(open.balance)}`}</button>}</>}>
+        {open && (
+          <div className="space-y-5">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+              <div><p className="font-semibold">{open.description}</p><p className="text-[var(--muted)]">{fmtShortDate(open.created_at)}{open.doctor?.user?.name ? ` · Dr. ${open.doctor.user.name}` : ""}{open.department?.name ? ` · ${open.department.name}` : ""}</p></div>
+              <StatusBadge status={open.status} />
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[26rem] text-left text-sm">
+                <caption className="sr-only">Line items</caption>
+                <thead className="border-b border-[var(--border)] text-xs text-[var(--muted)]"><tr><th scope="col" className="py-2">Item</th><th scope="col" className="py-2 text-right">Qty</th><th scope="col" className="py-2 text-right">Price</th><th scope="col" className="py-2 text-right">Total</th></tr></thead>
+                <tbody className="divide-y divide-[var(--border)]">
+                  {open.items.length === 0 ? <tr><td colSpan={4} className="py-3 text-[var(--muted)]">{open.description}</td></tr>
+                    : open.items.map((it) => <tr key={it.id}><td className="py-2">{it.description}</td><td className="py-2 text-right">{Number(it.quantity)}</td><td className="py-2 text-right">{money(it.unit_price)}</td><td className="py-2 text-right font-semibold">{money(it.total)}</td></tr>)}
+                </tbody>
+                <tfoot className="text-sm">
+                  <tr><th scope="row" colSpan={3} className="pt-3 text-right font-medium">Total</th><td className="pt-3 text-right font-semibold">{money(open.amount)}</td></tr>
+                  <tr><th scope="row" colSpan={3} className="text-right font-medium">Paid</th><td className="text-right">{money(open.amount_paid)}</td></tr>
+                  <tr><th scope="row" colSpan={3} className="text-right font-medium">{t("Balance")}</th><td className="text-right font-heading text-base font-semibold">{money(open.balance)}</td></tr>
+                </tfoot>
+              </table>
+            </div>
+            {open.payments.length > 0 && (
+              <div><h3 className="mb-2 text-xs font-semibold text-[var(--muted)]">Payments</h3>
+                <ul className="divide-y divide-[var(--border)] text-sm">
+                  {open.payments.map((p) => <li key={p.id} className="flex items-center justify-between gap-2 py-2"><span>{fmtShortDate(p.paid_at)} · {METHOD[p.method] ?? p.method} · <StatusBadge status={p.status} /></span><span className="flex items-center gap-3"><strong>{money(p.amount)}</strong>{p.status === "succeeded" && <Link href={`/portal/receipts/${p.id}`} className="text-xs font-semibold text-[var(--primary)] underline-offset-2 hover:underline">{t("Receipt")}</Link>}</span></li>)}
+                </ul></div>
+            )}
+            {open.claims.length > 0 && (
+              <div><h3 className="mb-2 text-xs font-semibold text-[var(--muted)]">{t("Insurance claims")}</h3>
+                <ul className="space-y-1 text-sm">{open.claims.map((c) => <li key={c.id} className="flex items-center justify-between"><span>{c.provider}{c.claim_number ? ` · ${c.claim_number}` : ""}</span><StatusBadge status={c.status} kind="claim" /></li>)}</ul></div>
+            )}
+            {payErr && <Notice kind="error">{payErr}</Notice>}
           </div>
         )}
-      </div>
+      </Modal>
     </div>
   );
 }

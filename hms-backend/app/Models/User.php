@@ -15,10 +15,15 @@ use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 
 #[Fillable(['name', 'email', 'password', 'is_active', 'avatar_path'])]
-#[Hidden(['password', 'remember_token', 'avatar_path'])]
+#[Hidden(['password', 'remember_token', 'avatar_path', 'two_factor_secret'])]
 class User extends Authenticatable
 {
-    protected $appends = ['avatar_url'];
+    protected $appends = ['avatar_url', 'two_factor_enabled'];
+
+    public function getTwoFactorEnabledAttribute(): bool
+    {
+        return (bool) $this->two_factor_confirmed_at;
+    }
 
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, HasRoles, HasApiTokens;
@@ -46,6 +51,8 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_active' => 'boolean',
+            'two_factor_secret' => 'encrypted',
+            'two_factor_confirmed_at' => 'datetime',
         ];
     }
 }

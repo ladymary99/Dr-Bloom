@@ -37,12 +37,15 @@ return new class extends Migration
     }
 
     // ── DB-level double-booking guard ──
+    // Only active appointments from the go-live date onward are enforced. Rows created
+    // before this date (legacy/seed data) may overlap and are intentionally exempt, because
+    // an exclusion constraint cannot be added while violating rows exist.
     DB::statement('CREATE EXTENSION IF NOT EXISTS btree_gist');
     DB::statement('ALTER TABLE appointments DROP CONSTRAINT IF EXISTS no_double_booking');
     DB::statement("ALTER TABLE appointments ADD CONSTRAINT no_double_booking EXCLUDE USING gist (
         doctor_id WITH =,
         tsrange(appointment_at, ends_at) WITH &&
-    ) WHERE (status <> 'cancelled')");
+    ) WHERE (status IN ('scheduled','confirmed','checked_in') AND appointment_at >= timestamp '2026-10-23 00:00:00')");
 }
 
 public function down(): void

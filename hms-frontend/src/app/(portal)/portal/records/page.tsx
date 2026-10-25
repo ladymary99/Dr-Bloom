@@ -1,171 +1,168 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useState } from "react";
 import { api } from "@/lib/api";
+import { apiError, downloadFile, fmtDate, fmtDateTime, fmtShortDate } from "@/lib/format";
+import { useT } from "@/lib/i18n";
+import { useFetch } from "@/hooks/useFetch";
+import { EmptyState, ErrorState, ListSkeleton, Notice, PageHeader, StatusBadge, Tabs, btnGhost, cardCls } from "@/components/ui";
 
-type VisitRecord = {
-  id: string;
-  visited_at: string;
-  type: string;
-  chief_complaint: string | null;
-  diagnosis: string | null;
-  notes: string | null;
-  doctor: { user: { name: string } } | null;
-  prescription: {
-    notes: string | null;
-    items: { medicine_name: string; dosage: string; frequency: string; duration_days: number | null; instructions: string | null }[];
-  } | null;
+type RxItem = { id: number; medicine_name: string; dosage: string; frequency: string; duration_days: number | null; instructions: string | null };
+type Visit = {
+  id: string; visited_at: string; type: string; doctor: string | null; specialization: string | null; chief_complaint: string | null;
+  diagnosis: string | null; vitals: Record<string, unknown> | null; notes: string | null; hidden: string[];
+  prescription: { id: string; status: string; notes: string | null; items: RxItem[] } | null;
 };
+type Rx = { id: string; status: string; issued_at: string; doctor: string | null; specialization: string | null; visit_date: string | null; diagnosis: string | null; items: RxItem[] };
+type Lab = { id: number; test_name: string; category: "lab" | "imaging"; status: string; result: string | null; notes: string | null; released_at: string; has_file: boolean; result_file_name: string | null; doctor?: { user?: { name: string } } | null };
+type Vax = { id: string; vaccine_name: string; dose_number: number | null; administered_on: string; next_due_on: string | null; lot_number: string | null; administered_by_user?: unknown; administrator?: { name: string } | null };
 
-type LabTest = {
-  id: number;
-  test_name: string;
-  status: string;
-  result: string | null;
-  created_at: string;
-  doctor: { user: { name: string } } | null;
-};
+type TabId = "visits" | "rx" | "labs" | "vax";
 
-const cardCls =
-  "rounded-3xl border border-[var(--border)] bg-white shadow-sm";
+type Query = { data: unknown[] | null; error: string; loading: boolean; reload: () => void };
 
-const pill: Record<string, string> = {
-  completed: "bg-emerald-100 text-emerald-700",
-  cancelled: "bg-red-100 text-red-600",
-  ordered: "bg-[var(--primary-tint)]/25 text-[var(--primary)]",
-  in_progress: "bg-amber-100 text-amber-700",
-};
-
-const iconProps = {
-  fill: "none", stroke: "currentColor", strokeWidth: 1.7,
-  strokeLinecap: "round", strokeLinejoin: "round", viewBox: "0 0 24 24",
-} as const;
+/** Shared loading / error / empty handling for each tab. */
+function Section({ q, children, empty }: { q: Query; children: React.ReactNode; empty: React.ReactNode }) {
+  if (q.error) return <ErrorState message={q.error} onRetry={q.reload} />;
+  if (q.loading && !q.data) return <ListSkeleton rows={3} />;
+  if (!q.data || q.data.length === 0) return <>{empty}</>;
+  return <>{children}</>;
+}
 
 export default function RecordsPage() {
-  const [visits, setVisits] = useState<VisitRecord[] | null>(null);
-  const [labTests, setLabTests] = useState<LabTest[]>([]);
-  const [error, setError] = useState("");
+  const t = useT();
+  const [tab, setTab] = useState<TabId>("visits");
+  const visits = useFetch<Visit[]>("/portal/records");
+  const rx = useFetch<Rx[]>("/portal/prescriptions");
+  const labs = useFetch<Lab[]>("/portal/lab-tests");
+  const vax = useFetch<Vax[]>("/portal/vaccinations");
+  const [fileErr, setFileErr] = useState("");
 
-  useEffect(() => {
-    api.get("/portal/records").then((response) => setVisits(response.data)).catch(() => setError("Could not load medical records."));
-    api.get("/portal/lab-tests").then((response) => setLabTests(response.data)).catch(() => {});
-  }, []);
+  async function openFile(l: Lab) {
+    setFileErr("");
+    try {
+      await downloadFile(api, `/portal/lab-tests/${l.id}/file`, l.result_file_name ?? `${l.test_name}.pdf`);
+    } catch (e) {
+      setFileErr(apiError(e, "Could not download the file."));
+    }
+  }
 
   return (
-    <div className="animate-fade-up w-full">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="font-heading text-3xl font-bold tracking-tight text-[var(--ink)]">Medical records</h1>
-        <p className="mt-1 text-sm text-[var(--muted)]">Visits, diagnoses, and prescriptions recorded by your care team.</p>
+    <div className="mx-auto max-w-4xl">
+      <PageHeader title={t("Medical records")} subtitle="Your visit summaries, prescriptions, results and vaccinations. Doctors choose which notes are shared with you." />
+      <div className="mb-4">
+        <Tabs label="Medical records" value={tab} onChange={setTab} tabs={[
+          { id: "visits", label: t("Visits"), count: visits.data?.length },
+          { id: "rx", label: t("Prescriptions"), count: rx.data?.length },
+          { id: "labs", label: t("Lab & imaging"), count: labs.data?.length },
+          { id: "vax", label: t("Vaccinations"), count: vax.data?.length },
+        ]} />
       </div>
 
-      {error && (
-        <div className="mb-6 flex items-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          <svg {...iconProps} className="h-4 w-4 flex-none"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
-          {error}
-        </div>
-      )}
-
-      <div className="space-y-6">
-        {/* Visit records */}
-        {!visits ? (
-          <div className="space-y-4">
-            {Array.from({ length: 2 }).map((_, i) => (
-              <div key={i} className="h-40 animate-pulse rounded-3xl border border-[var(--border)] bg-white" />
-            ))}
-          </div>
-        ) : visits.length === 0 ? (
-          <div className={`${cardCls} p-12 text-center`}>
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[var(--primary-tint)]/20">
-              <svg {...iconProps} className="h-5 w-5 text-[var(--primary)]"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
-            </div>
-            <p className="mt-3 text-sm text-[var(--muted)]">No medical records are available yet.</p>
-          </div>
-        ) : (
-          visits.map((visit) => (
-            <article key={visit.id} className={`${cardCls} overflow-hidden`}>
-              {/* visit header */}
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border)]/60 bg-[var(--primary-tint)]/10 px-6 py-4">
-                <div className="flex items-center gap-2.5">
-                  <time className="font-heading font-semibold tabular-nums text-[var(--ink)]">
-                    {new Date(visit.visited_at).toLocaleDateString([], { day: "numeric", month: "short", year: "numeric" })}
-                  </time>
-                  <span className="rounded-full bg-[var(--primary-tint)]/25 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--primary)]">
-                    {visit.type}
-                  </span>
-                </div>
-                <span className="flex items-center gap-1.5 text-xs text-[var(--muted)]">
-                  <svg {...iconProps} className="h-3.5 w-3.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                  {visit.doctor?.user?.name ?? "Care team"}
-                </span>
-              </div>
-
-              <div className="px-6 py-5">
-                {visit.chief_complaint && (
-                  <p className="text-sm text-[var(--muted)]"><b className="font-medium text-[var(--ink)]">Reason:</b> {visit.chief_complaint}</p>
-                )}
-                {visit.diagnosis && (
-                  <p className="mt-1.5 text-sm text-[var(--muted)]"><b className="font-medium text-[var(--ink)]">Diagnosis:</b> {visit.diagnosis}</p>
-                )}
-                {visit.notes && (
-                  <p className="mt-1.5 whitespace-pre-wrap text-sm text-[var(--muted)]"><b className="font-medium text-[var(--ink)]">Notes:</b> {visit.notes}</p>
-                )}
-
-                {/* prescription block */}
-                {visit.prescription && (
-                  <div className="mt-4 rounded-2xl border border-[var(--primary-tint)]/50 bg-[var(--primary-tint)]/15 px-5 py-4">
-                    <h2 className="flex items-center gap-2 text-sm font-semibold text-[var(--ink)]">
-                      <svg {...iconProps} className="h-4 w-4 text-[var(--primary)]"><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"/><path d="m8.5 8.5 7 7"/></svg>
-                      Prescription
-                    </h2>
-                    <ul className="mt-3 space-y-2">
-                      {visit.prescription.items.map((item, index) => (
-                        <li key={`${visit.id}-${index}`} className="rounded-xl bg-white px-3.5 py-2.5 text-sm text-[var(--muted)] shadow-sm">
-                          <b className="font-medium text-[var(--ink)]">{item.medicine_name}</b>
-                          {" · "}{item.dosage} · {item.frequency}
-                          {item.duration_days ? ` for ${item.duration_days} days` : ""}
-                          {item.instructions ? ` · ${item.instructions}` : ""}
-                        </li>
-                      ))}
-                    </ul>
-                    {visit.prescription.notes && (
-                      <p className="mt-3 text-xs text-[var(--muted)]">{visit.prescription.notes}</p>
+      <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
+        {tab === "visits" && (
+          <Section q={visits} empty={<EmptyState title="No visits recorded yet" hint="After your first appointment, the visit summary will appear here." action={{ label: t("Book appointment"), href: "/portal/book" }} />}>
+            <ul className="space-y-3">
+              {visits.data?.map((v) => (
+                <li key={v.id} className={`${cardCls} p-5`}>
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <h2 className="font-heading text-base font-semibold">{fmtDate(v.visited_at)}</h2>
+                    <span className="text-xs uppercase tracking-wide text-[var(--muted)]">{v.type}</span>
+                  </div>
+                  <p className="text-sm text-[var(--muted)]">Dr. {v.doctor ?? "—"}{v.specialization ? ` · ${v.specialization}` : ""}</p>
+                  <dl className="mt-3 space-y-3 text-sm">
+                    {v.chief_complaint && <div><dt className="text-xs font-semibold text-[var(--muted)]">Reason for visit</dt><dd>{v.chief_complaint}</dd></div>}
+                    {v.diagnosis && <div><dt className="text-xs font-semibold text-[var(--muted)]">Diagnosis</dt><dd className="whitespace-pre-wrap">{v.diagnosis}</dd></div>}
+                    {v.vitals && Object.keys(v.vitals).length > 0 && (
+                      <div><dt className="text-xs font-semibold text-[var(--muted)]">Vitals</dt>
+                        <dd className="mt-1 flex flex-wrap gap-2">{Object.entries(v.vitals).map(([k, val]) => <span key={k} className="rounded-lg bg-slate-100 px-2 py-1 text-xs"><span className="text-[var(--muted)]">{k.replace(/_/g, " ")}:</span> <strong>{String(val)}</strong></span>)}</dd></div>
                     )}
-                  </div>
-                )}
-              </div>
-            </article>
-          ))
-        )}
-
-        {/* Lab results */}
-        {labTests.length > 0 && (
-          <section className={`${cardCls} overflow-hidden`}>
-            <div className="border-b border-[var(--border)] bg-[var(--primary-tint)]/10 px-6 py-4">
-              <h2 className="font-heading font-semibold text-[var(--ink)]">Lab results ({labTests.length})</h2>
-            </div>
-            <ul className="divide-y divide-[var(--border)]/60">
-              {labTests.map((test) => (
-                <li key={test.id} className="px-6 py-4">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-sm font-medium text-[var(--ink)]">{test.test_name}</span>
-                    <span className={`rounded-full px-3 py-0.5 text-xs font-semibold capitalize ${pill[test.status] ?? "bg-[var(--primary-tint)]/15 text-[var(--muted)]"}`}>
-                      {test.status.replaceAll("_", " ")}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-xs tabular-nums text-[var(--muted)]">
-                    {new Date(test.created_at).toLocaleDateString()}
-                    {test.doctor?.user?.name ? ` · Dr. ${test.doctor.user.name}` : ""}
-                  </p>
-                  {test.result && (
-                    <p className="mt-3 whitespace-pre-wrap rounded-xl border-l-4 border-emerald-500 bg-emerald-50 px-4 py-3 text-sm text-[var(--ink)]">
-                      {test.result}
-                    </p>
+                    {v.notes && <div><dt className="text-xs font-semibold text-[var(--muted)]">Doctor&apos;s notes</dt><dd className="whitespace-pre-wrap">{v.notes}</dd></div>}
+                  </dl>
+                  {v.hidden.length > 0 && <p className="mt-3 text-xs text-[var(--muted)]">Your doctor has not shared their {v.hidden.join(", ")} for this visit. Ask them at your next appointment or <Link href="/portal/messages" className="underline">send a message</Link>.</p>}
+                  {v.prescription && (
+                    <div className="mt-4 rounded-2xl bg-[var(--primary-tint)]/20 p-4">
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="text-sm font-semibold">{t("Prescriptions")}</h3>
+                        <Link href={`/portal/prescriptions/${v.prescription.id}`} className="text-xs font-semibold text-[var(--primary)] underline-offset-2 hover:underline">View / {t("Print")}</Link>
+                      </div>
+                      <ul className="mt-2 space-y-1 text-sm">{v.prescription.items.map((i) => <li key={i.id}><strong>{i.medicine_name}</strong> · {i.dosage}, {i.frequency}{i.duration_days ? ` for ${i.duration_days} days` : ""}</li>)}</ul>
+                    </div>
                   )}
                 </li>
               ))}
             </ul>
-          </section>
+          </Section>
+        )}
+
+        {tab === "rx" && (
+          <Section q={rx} empty={<EmptyState title="No prescriptions yet" hint="Prescriptions written by your doctor will appear here and can be printed for the pharmacy." />}>
+            <ul className="space-y-3">
+              {rx.data?.map((p) => (
+                <li key={p.id} className={`${cardCls} p-5`}>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <h2 className="font-heading text-base font-semibold">{fmtShortDate(p.issued_at)} · Dr. {p.doctor ?? "—"}</h2>
+                      <p className="text-xs text-[var(--muted)]">{p.diagnosis ?? p.specialization ?? ""}</p>
+                    </div>
+                    <div className="flex items-center gap-2"><StatusBadge status={p.status === "dispensed" ? "completed" : "scheduled"} /><span className="sr-only">{p.status}</span>
+                      <Link href={`/portal/prescriptions/${p.id}`} className={btnGhost}>View / {t("Print")}</Link></div>
+                  </div>
+                  <ul className="mt-3 divide-y divide-[var(--border)] text-sm">
+                    {p.items.map((i) => <li key={i.id} className="py-2"><strong>{i.medicine_name}</strong> — {i.dosage}, {i.frequency}{i.duration_days ? `, ${i.duration_days} days` : ""}{i.instructions && <span className="block text-xs text-[var(--muted)]">{i.instructions}</span>}</li>)}
+                  </ul>
+                </li>
+              ))}
+            </ul>
+          </Section>
+        )}
+
+        {tab === "labs" && (
+          <>
+            {fileErr && <div className="mb-3"><Notice kind="error">{fileErr}</Notice></div>}
+            <Section q={labs} empty={<EmptyState title="No results to show yet" hint="Lab and imaging results appear here once your care team has reviewed and released them." />}>
+              <ul className="space-y-3">
+                {labs.data?.map((l) => (
+                  <li key={l.id} className={`${cardCls} p-5`}>
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <h2 className="font-heading text-base font-semibold">{l.test_name}</h2>
+                        <p className="text-xs text-[var(--muted)]">{l.category === "imaging" ? "Imaging" : "Laboratory"} · released {fmtDateTime(l.released_at)}{l.doctor?.user?.name ? ` · ordered by Dr. ${l.doctor.user.name}` : ""}</p>
+                      </div>
+                      <StatusBadge status={l.status} />
+                    </div>
+                    {l.result && <pre className="mt-3 whitespace-pre-wrap rounded-2xl bg-slate-50 p-3 font-sans text-sm">{l.result}</pre>}
+                    {l.notes && <p className="mt-2 text-xs text-[var(--muted)]">{l.notes}</p>}
+                    {l.has_file && <button onClick={() => openFile(l)} className={`${btnGhost} mt-3`}>{t("Download")} {l.result_file_name ?? "report"}</button>}
+                  </li>
+                ))}
+              </ul>
+            </Section>
+          </>
+        )}
+
+        {tab === "vax" && (
+          <Section q={vax} empty={<EmptyState title="No vaccinations recorded" hint="Vaccines given at our clinic are added to your record by your nurse or doctor." />}>
+            <div className={`${cardCls} overflow-x-auto`}>
+              <table className="w-full min-w-[34rem] text-left text-sm">
+                <caption className="sr-only">Vaccination history</caption>
+                <thead className="border-b border-[var(--border)] text-xs text-[var(--muted)]"><tr>
+                  <th scope="col" className="px-5 py-3">Vaccine</th><th scope="col" className="px-3 py-3">Dose</th><th scope="col" className="px-3 py-3">Given</th><th scope="col" className="px-3 py-3">Next due</th><th scope="col" className="px-3 py-3">Lot</th></tr></thead>
+                <tbody className="divide-y divide-[var(--border)]">
+                  {vax.data?.map((v) => (
+                    <tr key={v.id}>
+                      <th scope="row" className="px-5 py-3 font-semibold">{v.vaccine_name}</th>
+                      <td className="px-3 py-3">{v.dose_number ?? "—"}</td>
+                      <td className="px-3 py-3">{fmtShortDate(v.administered_on + "T00:00:00")}</td>
+                      <td className="px-3 py-3">{v.next_due_on ? fmtShortDate(v.next_due_on + "T00:00:00") : "—"}</td>
+                      <td className="px-3 py-3 text-[var(--muted)]">{v.lot_number ?? "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Section>
         )}
       </div>
     </div>

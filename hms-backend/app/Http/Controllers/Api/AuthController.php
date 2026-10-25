@@ -7,7 +7,12 @@ use App\Models\AuditLog;
 use App\Models\User;
 use App\Notifications\NewPatientNotification;
 use Illuminate\Http\Request;
+use App\Models\Consent;
+use App\Models\Setting;
+use App\Support\Security\Totp;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
@@ -24,9 +29,11 @@ class AuthController extends Controller
             'date_of_birth' => 'required|date',
             'gender' => 'required|in:male,female,other',
             'password' => 'required|string|min:8|confirmed',
+            'accept_privacy' => 'accepted',
+            'preferred_language' => 'nullable|in:en,az,ru',
         ]);
 
-        $user = \Illuminate\Support\Facades\DB::transaction(function () use ($data) {
+        $user = \Illuminate\Support\Facades\DB::transaction(function () use ($data, $request) {
             $user = User::create([
                 'name' => $data['first_name'] . ' ' . $data['last_name'],
                 'email' => $data['email'],
@@ -34,7 +41,8 @@ class AuthController extends Controller
             ]);
             $user->assignRole('patient');
 
-            \App\Models\Patient::create([
+            $version = Setting::get('privacy_policy_version', '2026-10');
+            $patient = \App\Models\Patient::create([
                 'user_id' => $user->id,
                 'first_name' => $data['first_name'],
                 'last_name' => $data['last_name'],
@@ -42,6 +50,15 @@ class AuthController extends Controller
                 'phone' => $data['phone'],
                 'date_of_birth' => $data['date_of_birth'],
                 'gender' => $data['gender'],
+                'preferred_language' => $data['preferred_language'] ?? 'en',
+                'privacy_accepted_at' => now(),
+                'privacy_policy_version' => $version,
+            ]);
+            // proof of consent: what, which version, when, from where
+            Consent::create([
+                'patient_id' => $patient->id, 'user_id' => $user->id, 'type' => 'privacy_policy',
+                'version' => $version, 'accepted_at' => now(),
+                'ip_address' => $request->ip(), 'user_agent' => substr((string) $request->userAgent(), 0, 500),
             ]);
 
             return $user;
@@ -77,11 +94,21 @@ class AuthController extends Controller
         $request->validate([
             'email' => 'required|email',
             'password' => 'required',
+            'code' => 'nullable|string|max:10',
         ]);
+
+        // Per-account lockout on top of the per-IP route throttle: 5 failures => 15 minutes
+        $throttleKey = 'login:'.Str::lower($request->email).'|'.$request->ip();
+        if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
+            throw ValidationException::withMessages([
+                'email' => ['Too many failed attempts. Try again in '.ceil(RateLimiter::availableIn($throttleKey) / 60).' minutes.'],
+            ]);
+        }
 
         $user = User::where('email', $request->email)->first();
 
         if (! $user || ! Hash::check($request->password, $user->password)) {
+            RateLimiter::hit($throttleKey, 900);
             AuditLog::create([
                 'action' => 'login_failed',
                 'auditable_type' => User::class,
@@ -108,6 +135,18 @@ class AuthController extends Controller
                 'email' => ['This account has been deactivated. Contact your administrator.'],
             ]);
         }
+
+        // Optional 2FA: password alone is not enough once the user enabled it
+        if ($user->two_factor_confirmed_at) {
+            if (! $request->filled('code')) {
+                return response()->json(['two_factor_required' => true, 'message' => 'Enter the 6-digit code from your authenticator app.'], 422);
+            }
+            if (! Totp::verify($user->two_factor_secret, $request->code)) {
+                RateLimiter::hit($throttleKey, 900);
+                throw ValidationException::withMessages(['code' => ['That code is not valid or has expired.']]);
+            }
+        }
+        RateLimiter::clear($throttleKey);
 
         // One token per user — old tokens die on new login
         $user->tokens()->delete();

@@ -7,7 +7,9 @@ use App\Models\AuditLog;
 use App\Models\Patient;
 use App\Models\PatientDocument;
 use Illuminate\Http\Request;
+use App\Support\Security\UploadInspector;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class PatientDocumentController extends Controller
 {
@@ -46,7 +48,7 @@ class PatientDocumentController extends Controller
         abort_unless(Storage::disk('local')->exists($document->file_path), 404, 'Document file is missing.');
         $this->auditDocumentAccess($request, $patient, 'patient_document_downloaded', $document);
 
-        return Storage::disk('local')->download($document->file_path, $document->original_name);
+        return Storage::disk('local')->download($document->file_path, $document->original_name, ['X-Content-Type-Options' => 'nosniff']);
     }
 
     public function downloadForMe(Request $request, PatientDocument $document)
@@ -56,7 +58,7 @@ class PatientDocumentController extends Controller
         abort_unless(Storage::disk('local')->exists($document->file_path), 404, 'Document file is missing.');
         $this->auditDocumentAccess($request, $patient, 'patient_document_downloaded', $document);
 
-        return Storage::disk('local')->download($document->file_path, $document->original_name);
+        return Storage::disk('local')->download($document->file_path, $document->original_name, ['X-Content-Type-Options' => 'nosniff']);
     }
 
     public function destroy(Request $request, Patient $patient, PatientDocument $document)
@@ -121,20 +123,35 @@ class PatientDocumentController extends Controller
     {
         $data = $request->validate([
             'title' => 'required|string|max:160',
-            'document' => 'required|file|mimes:pdf,jpg,jpeg,png,doc,docx|max:10240',
+            'category' => 'nullable|in:lab_report,imaging,prescription,insurance,id_document,referral,other',
+            'document' => 'required|file|max:10240',
         ]);
 
         $file = $data['document'];
-        $path = $file->store("patient-documents/{$patient->id}", 'local');
+
+        // Server-side validation of the real content (not just the extension the browser claims)
+        try {
+            $info = UploadInspector::inspect($file->getRealPath(), $file->getClientOriginalName(), 10 * 1048576,
+                UploadInspector::MEDICAL, (bool) config('services.clamav.enabled'));
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage(), 'errors' => ['document' => [$e->getMessage()]]], 422);
+        }
+
+        // random on-disk name on the private disk; there is no public URL to this file
+        $path = $file->storeAs("patient-documents/{$patient->id}", Str::uuid().'.'.$info['extension'], 'local');
         abort_if(! $path, 500, 'Could not store the document.');
 
         $document = $patient->documents()->create([
             'uploaded_by' => $request->user()->id,
             'title' => $data['title'],
-            'original_name' => basename(str_replace('\\', '/', $file->getClientOriginalName())),
+            'original_name' => Str::limit(preg_replace('/[\x00-\x1F\x7F]/u', '', basename(str_replace('\\', '/', $file->getClientOriginalName()))), 200, ''),
             'file_path' => $path,
-            'mime_type' => $file->getMimeType() ?: 'application/octet-stream',
-            'size' => $file->getSize(),
+            'mime_type' => $info['mime'],
+            'size' => $info['size'],
+            'category' => $data['category'] ?? 'other',
+            'scan_status' => $info['scan_status'],
+            'scanned_at' => $info['scan_status'] === 'clean' ? now() : null,
+            'sha256' => $info['sha256'],
         ]);
 
         AuditLog::create([

@@ -13,10 +13,22 @@ class Appointment extends Model
 
     protected $fillable = [
         'patient_id', 'doctor_id', 'department_id', 'appointment_at',
-        'duration_minutes', 'status', 'reason', 'notes',
+        'duration_minutes', 'status', 'reason', 'notes', 'visit_type', 'meeting_url',
+        'cancelled_at', 'cancelled_by', 'cancellation_reason', 'rescheduled_from', 'booked_by',
+        'reminder_24h_sent_at', 'reminder_1h_sent_at',
     ];
 
-    protected $casts = ['appointment_at' => 'datetime'];
+    protected $casts = [
+        // Wall-clock clinic time, serialized WITHOUT a UTC "Z" so browsers show exactly the booked time.
+        'appointment_at' => 'datetime:Y-m-d\TH:i:s',
+        'cancelled_at' => 'datetime',
+        'rescheduled_from' => 'datetime:Y-m-d\TH:i:s',
+        'reminder_24h_sent_at' => 'datetime',
+        'reminder_1h_sent_at' => 'datetime',
+    ];
+
+    /** Statuses that occupy the doctor's calendar. */
+    public const ACTIVE = ['scheduled', 'confirmed', 'checked_in'];
 
     public function patient(): BelongsTo
     {

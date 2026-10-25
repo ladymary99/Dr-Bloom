@@ -33,6 +33,9 @@ export default function ConsultPage() {
     diagnosis: "", notes: "", type: "opd",
   });
   const [visitId, setVisitId] = useState<string | null>(null);
+  // what the patient may see in their portal (notes stay private unless the doctor opts in)
+  const [share, setShare] = useState({ diagnosis: true, vitals: true, notes: false });
+  const [testCategory, setTestCategory] = useState<"lab" | "imaging">("lab");
   const [testName, setTestName] = useState("");
   const [orderedTests, setOrderedTests] = useState<string[]>([]);
   const [orderingTest, setOrderingTest] = useState(false);
@@ -67,6 +70,9 @@ export default function ConsultPage() {
         diagnosis: form.diagnosis || null,
         notes: form.notes || null,
         type: form.type,
+        share_diagnosis: share.diagnosis,
+        share_vitals: share.vitals,
+        share_notes: share.notes,
       });
       setVisitId(data.id);
     } catch (requestError) {
@@ -110,6 +116,7 @@ export default function ConsultPage() {
         patient_id: patient.id,
         visit_id: visitId,
         test_name: name,
+        category: testCategory,
       });
       setOrderedTests((tests) => [...tests, name]);
       setTestName("");
@@ -197,6 +204,21 @@ export default function ConsultPage() {
               </div>
 
               {!visitId && (
+                <fieldset className="mt-4 rounded-2xl border border-[var(--border)] bg-slate-50 p-4">
+                  <legend className="px-1 text-sm font-semibold text-slate-800">Visible to the patient in their portal</legend>
+                  <div className="mt-1 flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-800">
+                    {([["diagnosis", "Diagnosis"], ["vitals", "Vitals"], ["notes", "My notes"]] as const).map(([k, label]) => (
+                      <label key={k} className="flex cursor-pointer items-center gap-2">
+                        <input type="checkbox" checked={share[k]} onChange={(e) => setShare({ ...share, [k]: e.target.checked })} className="h-4 w-4" />
+                        {label}
+                      </label>
+                    ))}
+                  </div>
+                  <p className="mt-2 text-xs text-slate-600">The reason for visit and prescriptions are always visible. You can change this later from the patient&apos;s history.</p>
+                </fieldset>
+              )}
+
+              {!visitId && (
                 <button onClick={saveVisit} disabled={saving}
                   className="w-full rounded-full bg-blue-600 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60">
                   {saving ? "Saving visit…" : "Save visit & continue to prescription"}
@@ -259,6 +281,11 @@ export default function ConsultPage() {
             <div className="rounded-2xl border border-slate-200 bg-white p-6">
               <h2 className="font-semibold text-slate-900">Lab tests</h2>
               <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                <label htmlFor="test-category" className="sr-only">Category</label>
+                <select id="test-category" value={testCategory} onChange={(e) => setTestCategory(e.target.value as "lab" | "imaging")} className={`${inputCls} !w-36 flex-none`}>
+                  <option value="lab">Laboratory</option>
+                  <option value="imaging">Imaging</option>
+                </select>
                 <input className={inputCls} placeholder="Test name (e.g. CBC, X-Ray Chest)" value={testName}
                   onChange={(event) => setTestName(event.target.value)}
                   onKeyDown={(event) => {
