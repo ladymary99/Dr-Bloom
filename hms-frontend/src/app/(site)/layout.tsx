@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 const links = [
   { href: "/", label: "Home" },
   { href: "/about", label: "About" },
-  { href: "/services", label: "Services" },
+  { href: "/department", label: "Departments" },
   { href: "/doctors", label: "Doctors" },
   { href: "/contact", label: "Contact" },
 ];
@@ -14,7 +14,7 @@ const links = [
 const footerLinks = [
   { href: "/about", label: "Why Dr-Bloom" },
   { href: "/contact", label: "Privacy Policy" },
-  { href: "/services", label: "Our Services" },
+  { href: "/department", label: "Our Departments" },
   { href: "/doctors", label: "Our Doctors" },
   { href: "/about", label: "About Us" },
   { href: "/contact", label: "Terms and Conditions" },

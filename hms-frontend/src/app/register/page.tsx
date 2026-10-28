@@ -71,7 +71,14 @@ export default function RegisterPage() {
     try {
       const { data } = await api.post("/patient/register", form);
       setAuth(data);
-      router.push("/portal");
+      const currentParams = new URLSearchParams(window.location.search);
+      const bookingParams = new URLSearchParams();
+      for (const key of ["doctor", "department"]) {
+        const value = currentParams.get(key)?.trim();
+        if (value) bookingParams.set(key, value);
+      }
+      const bookingQuery = bookingParams.toString();
+      router.push(bookingQuery ? `/portal/book?${bookingQuery}` : "/portal");
     } catch (requestError) {
       const data = (requestError as {
         response?: { data?: { message?: string; errors?: Record<string, string[]> } };

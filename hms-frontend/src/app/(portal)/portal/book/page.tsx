@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { api } from "@/lib/api";
 import { addDays, apiError, downloadFile, fmtDate, fmtDateTime, money, todayStr, wallDate } from "@/lib/format";
 import { useT } from "@/lib/i18n";
@@ -18,18 +19,33 @@ type Slots = { slot_minutes: number; fee: number; days: Record<string, string[]>
 type Booked = { id: string; appointment_at: string; status: string; visit_type: string; join_url: string | null; doctor?: { user?: { name: string } }; invoice?: { invoice_number: string; amount: string } | null };
 
 const WINDOW = 14;
+const normalizeName = (name: string) => name.replace(/^dr\.?\s*/i, "").trim().toLocaleLowerCase();
 
 export default function BookPage() {
+  return (
+    <Suspense fallback={<div className="mx-auto max-w-4xl"><ListSkeleton rows={3} /></div>}>
+      <BookPageContent />
+    </Suspense>
+  );
+}
+
+function BookPageContent() {
   const t = useT();
+  const searchParams = useSearchParams();
+  const initialDoctor = searchParams.get("doctor")?.trim() ?? "";
+  const initialDepartment = searchParams.get("department")?.trim() ?? "";
   const [step, setStep] = useState<"doctor" | "time" | "review" | "done">("doctor");
   const [filters, setFilters] = useState<Filters | null>(null);
-  const [q, setQ] = useState("");
+  const [q, setQ] = useState(initialDoctor.replace(/^dr\.?\s*/i, "").trim());
   const [spec, setSpec] = useState("");
   const [dept, setDept] = useState("");
   const [lang, setLang] = useState("");
   const [doctors, setDoctors] = useState<Doctor[] | null>(null);
   const [listError, setListError] = useState("");
+  const [filtersError, setFiltersError] = useState("");
+  const [departmentPrefillError, setDepartmentPrefillError] = useState("");
   const [profile, setProfile] = useState<Doctor | null>(null);
+  const autoSelectedDoctor = useRef(false);
 
   const [doctor, setDoctor] = useState<Doctor | null>(null);
   const [slots, setSlots] = useState<Slots | null>(null);
@@ -45,24 +61,17 @@ export default function BookPage() {
   const [booked, setBooked] = useState<Booked | null>(null);
 
   useEffect(() => {
-    api.get("/portal/doctor-filters").then((r) => setFilters(r.data)).catch(() => {});
-  }, []);
-
-  const loadDoctors = useCallback(async () => {
-    setListError("");
-    try {
-      const { data } = await api.get("/portal/doctors", { params: { q: q || undefined, specialization: spec || undefined, department_id: dept || undefined, language: lang || undefined } });
-      setDoctors(data);
-    } catch (e) {
-      setListError(apiError(e));
-    }
-  }, [q, spec, dept, lang]);
-
-  // debounce typing in the search box
-  useEffect(() => {
-    const id = setTimeout(loadDoctors, 300);
-    return () => clearTimeout(id);
-  }, [loadDoctors]);
+    api.get<Filters>("/portal/doctor-filters").then(({ data }) => {
+      setFilters(data);
+      const department = data.departments.find(
+        (item) => normalizeName(item.name) === normalizeName(initialDepartment)
+      );
+      if (department) setDept(String(department.id));
+      else if (initialDepartment) {
+        setDepartmentPrefillError(`No booking department matches "${initialDepartment}".`);
+      }
+    }).catch((e) => setFiltersError(apiError(e)));
+  }, [initialDepartment]);
 
   const loadSlots = useCallback(async (d: Doctor, end: string, keepDay = false) => {
     setSlotsLoading(true);
@@ -82,7 +91,7 @@ export default function BookPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function choose(d: Doctor) {
+  const choose = useCallback((d: Doctor) => {
     setProfile(null);
     setDoctor(d);
     setSlots(null);
@@ -93,7 +102,30 @@ export default function BookPage() {
     setWindowEnd(end);
     setStep("time");
     loadSlots(d, end);
-  }
+  }, [loadSlots, setStep]);
+
+  const loadDoctors = useCallback(async () => {
+    setListError("");
+    try {
+      const { data } = await api.get<Doctor[]>("/portal/doctors", { params: { q: q || undefined, specialization: spec || undefined, department_id: dept || undefined, language: lang || undefined } });
+      setDoctors(data);
+      if (initialDoctor && !autoSelectedDoctor.current) {
+        const selected = data.find((item) => normalizeName(item.name) === normalizeName(initialDoctor));
+        if (selected) {
+          autoSelectedDoctor.current = true;
+          choose(selected);
+        }
+      }
+    } catch (e) {
+      setListError(apiError(e));
+    }
+  }, [choose, dept, initialDoctor, lang, q, spec]);
+
+  // debounce typing in the search box
+  useEffect(() => {
+    const id = setTimeout(loadDoctors, 300);
+    return () => clearTimeout(id);
+  }, [loadDoctors]);
 
   function moreDates() {
     if (!doctor) return;
@@ -191,6 +223,9 @@ export default function BookPage() {
               )}
             </Field>
           </div>
+
+          {filtersError && <ErrorState message={filtersError} />}
+          {departmentPrefillError && <p role="status" className="mb-4 text-sm text-[var(--muted)]">{departmentPrefillError}</p>}
 
           {listError ? <ErrorState message={listError} onRetry={loadDoctors} />
             : !doctors ? <ListSkeleton rows={3} />

@@ -85,38 +85,8 @@ function StatsStrip({ info }: { info: Info | null }) {
   );
 }
 
-/* ---------- healthcare designed around you (3 cards) ---------- */
-const advantages = [
-  {
-    icon: (
-      <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="4" width="18" height="14" rx="2"/><path d="M7 14l3-3 2 2 4-4 3 3M8 2v4M16 2v4"/>
-      </svg>
-    ),
-    title: "Advanced Medical Technology",
-    text: "We use modern diagnostic and treatment technologies to help our specialists make faster, more informed decisions.",
-  },
-  {
-    icon: (
-      <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-      </svg>
-    ),
-    title: "Expert Medical Specialists",
-    text: "Our multidisciplinary teams work together across departments to provide comprehensive care for complex and everyday medical needs.",
-  },
-  {
-    icon: (
-      <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18 15 15 0 0 1 0-18z"/>
-      </svg>
-    ),
-    title: "Connected Patient Care",
-    text: "Your care is coordinated across departments, giving your medical team the information they need to provide consistent and informed treatment.",
-  },
-];
-
-function AdvantageSection() {
+/* shared: reveal a section when it scrolls into view */
+function useReveal(threshold = 0.1) {
   const ref = useRef<HTMLElement>(null);
   const [visible, setVisible] = useState(false);
 
@@ -125,11 +95,71 @@ function AdvantageSection() {
     if (!el) return;
     const obs = new IntersectionObserver(
       ([e]) => { if (e.isIntersecting) { setVisible(true); obs.disconnect(); } },
-      { threshold: 0.2 }
+      { threshold }
     );
     obs.observe(el);
     return () => obs.disconnect();
+  }, [threshold]);
+
+  return { ref, visible };
+}
+
+const norm = (s: string) => s.toLowerCase().trim();
+
+/* ---------- departments (3 cards from the database) ---------- */
+type Dept = { id: number; name: string; code: string; description: string | null };
+
+/* shown if the API has not returned departments */
+const fallbackDepts: (Dept & { services: string[] })[] = [
+  { id: 1, name: "Cardiology", code: "CAR", services: ["ECG & Echo", "Stress tests", "Heart clinic"], description: "Comprehensive heart and cardiovascular care — from routine ECGs and stress tests to long-term management of blood pressure, cholesterol and heart disease." },
+  { id: 2, name: "Neurology", code: "NEU", services: ["Migraine care", "Epilepsy", "Stroke recovery"], description: "Expert diagnosis and treatment of neurological conditions, including migraines, epilepsy, stroke recovery and disorders of the brain, spine and nervous system." },
+  { id: 3, name: "Pediatrics", code: "PED", services: ["Newborn care", "Vaccination", "Growth checks"], description: "Specialized healthcare for children and adolescents — newborn checks, vaccinations, growth tracking and treatment of childhood illnesses in a child-friendly setting." },
+];
+
+const iconProps = {
+  className: "h-7 w-7",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: 1.7,
+  strokeLinecap: "round",
+  strokeLinejoin: "round",
+  viewBox: "0 0 24 24",
+} as const;
+
+/* [keywords matched against the department name, icon] — first match wins */
+const deptIcons: [string[], React.ReactNode][] = [
+  [["cardio"], <svg key="cardio" {...iconProps}><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21.2l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.8z"/><path d="M7 12h3l1.5-3 2 5L15 12h2"/></svg>],
+  [["neuro"], <svg key="neuro" {...iconProps}><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>],
+  [["pediat", "paediat", "child"], <svg key="ped" {...iconProps}><circle cx="12" cy="8" r="4"/><path d="M6 21v-1a6 6 0 0 1 12 0v1"/></svg>],
+  [["ortho"], <svg key="ortho" {...iconProps}><path d="M17 10c.7-.7 1.7-1 2.5-.5a2.5 2.5 0 1 0-3-3c-.5-.8-.2-1.8.5-2.5a2.5 2.5 0 1 0-3 3L7 14c-.7.7-1.7 1-2.5.5a2.5 2.5 0 1 0 3 3c.5.8.2 1.8-.5 2.5a2.5 2.5 0 1 0 3-3z"/></svg>],
+  [["emer"], <svg key="emer" {...iconProps}><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M12 8v8M8 12h8"/></svg>],
+  [["radio", "imaging"], <svg key="radio" {...iconProps}><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M7 12h10"/></svg>],
+  [["lab", "patholog"], <svg key="lab" {...iconProps}><path d="M10 2v6.5L4.5 19a2 2 0 0 0 1.8 3h11.4a2 2 0 0 0 1.8-3L14 8.5V2M8.5 2h7M7 16h10"/></svg>],
+  [["onco", "cancer"], <svg key="onco" {...iconProps}><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>],
+  [["women", "obstet", "gyn"], <svg key="women" {...iconProps}><circle cx="12" cy="8" r="5"/><path d="M12 13v8M9 18h6"/></svg>],
+  [["surg"], <svg key="surg" {...iconProps}><path d="M12 2l8 3v6c0 5-3.4 9.4-8 11-4.6-1.6-8-6-8-11V5l8-3z"/><path d="m8.8 12 2.2 2.2 4.2-4.7"/></svg>],
+];
+
+function iconFor(name: string) {
+  const n = name.toLowerCase();
+  for (const [keys, icon] of deptIcons) {
+    if (keys.some((k) => n.includes(k))) return icon;
+  }
+  return deptIcons[0][1]; // heart fallback
+}
+
+function DepartmentsSection() {
+  const { ref, visible } = useReveal(0.1);
+  const [depts, setDepts] = useState<Dept[] | null>(null);
+
+  useEffect(() => {
+    api
+      .get("/departments")
+      .then((r) => setDepts(Array.isArray(r.data) ? r.data : []))
+      .catch(() => setDepts([]));
   }, []);
+
+  const list = depts === null ? null : (depts.length ? depts : fallbackDepts).slice(0, 3);
 
   return (
     <section ref={ref} className="py-24">
@@ -139,40 +169,68 @@ function AdvantageSection() {
           style={{ opacity: visible ? 1 : 0, transform: visible ? "none" : "translateY(24px)" }}
         >
           <h2 className="font-heading text-4xl font-bold tracking-tight text-[var(--ink)] sm:text-5xl">
-            Healthcare designed around you
+            Our departments
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-[var(--muted)]">
-            From diagnosis to recovery, Dr&apos;Bloom brings specialists, advanced technology,
-            and connected healthcare together to make every step of your medical journey
-            simpler, safer, and more personalized.
+            Specialist care for every stage of life — from routine checkups to
+            emergencies, all connected under one roof and one patient record.
           </p>
         </div>
 
         <div className="mt-14 grid gap-8 md:grid-cols-3">
-          {advantages.map((a, i) => (
-            <div
-              key={a.title}
-              onMouseMove={(e) => {
-                const r = e.currentTarget.getBoundingClientRect();
-                e.currentTarget.style.setProperty("--mx", `${e.clientX - r.left}px`);
-                e.currentTarget.style.setProperty("--my", `${e.clientY - r.top}px`);
-              }}
-              className="glow-card min-h-[380px] overflow-hidden rounded-3xl bg-[var(--primary-tint)]/25 p-8 transition-all duration-700 ease-out"
-              style={{
-                opacity: visible ? 1 : 0,
-                transform: visible ? "none" : "translateY(40px)",
-                transitionDelay: `${200 + i * 150}ms`,
-              }}
-            >
-              <div className="text-[var(--muted)]">{a.icon}</div>
-              <h3 className="font-heading mt-8 text-xl font-semibold leading-snug text-[var(--ink)]">
-                {a.title}
-              </h3>
-              <p className="mt-3 text-sm leading-relaxed text-[var(--muted)]">
-                {a.text}
-              </p>
-            </div>
-          ))}
+          {list === null
+            ? [0, 1, 2].map((i) => (
+                <div key={i} className="min-h-[380px] animate-pulse rounded-3xl bg-[var(--primary-tint)]/20" />
+              ))
+            : list.map((d, i) => {
+                const meta = fallbackDepts.find((f) => norm(f.code) === norm(d.code) || norm(f.name) === norm(d.name));
+                const services = meta?.services ?? ["Consultations", "Diagnostics", "Follow-up care"];
+                return (
+                  <div
+                    key={`${d.code}-${d.id}`}
+                    onMouseMove={(e) => {
+                      const r = e.currentTarget.getBoundingClientRect();
+                      e.currentTarget.style.setProperty("--mx", `${e.clientX - r.left}px`);
+                      e.currentTarget.style.setProperty("--my", `${e.clientY - r.top}px`);
+                    }}
+                    className="glow-card flex min-h-[380px] flex-col overflow-hidden rounded-3xl bg-[var(--primary-tint)]/25 p-8 transition-all duration-700 ease-out"
+                    style={{
+                      opacity: visible ? 1 : 0,
+                      transform: visible ? "none" : "translateY(40px)",
+                      transitionDelay: `${200 + i * 150}ms`,
+                    }}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="text-[var(--muted)]">{iconFor(d.name)}</div>
+                      <span className="rounded-full bg-white/60 px-3 py-1 font-mono text-[11px] text-[var(--muted)]">
+                        {d.code}
+                      </span>
+                    </div>
+                    <h3 className="font-heading mt-8 text-xl font-semibold leading-snug text-[var(--ink)]">
+                      {d.name}
+                    </h3>
+                    <p className="mt-3 text-sm leading-relaxed text-[var(--muted)]">
+                      {d.description ?? meta?.description ?? "Consultations, diagnostics and treatment from our specialist team."}
+                    </p>
+                    <div className="mt-auto flex flex-wrap gap-2 pt-6">
+                      {services.map((c) => (
+                        <span key={c} className="rounded-full bg-white/60 px-3 py-1 text-[10px] text-[var(--muted)]">
+                          {c}
+                        </span>
+                      ))}
+                    </div>
+                    <Link
+                      href={`/doctors?department=${encodeURIComponent(d.name)}`}
+                      className="mt-6 inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.25em] text-[var(--primary)] transition-all hover:gap-3"
+                    >
+                      See doctors
+                      <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M5 12h14M13 6l6 6-6 6" />
+                      </svg>
+                    </Link>
+                  </div>
+                );
+              })}
         </div>
 
         <div
@@ -188,10 +246,440 @@ function AdvantageSection() {
             className="bg-[var(--primary-tint)] btn-hero btn-roll inline-flex items-center gap-2 rounded-full px-8 py-3 text-xs uppercase"
           >
             <span className="roll">
-              <span className="r1">Explore all services</span>
-              <span className="r2" aria-hidden="true">Explore all services</span>
+              <span className="r1">See all departments</span>
+              <span className="r2" aria-hidden="true">See all departments</span>
             </span>
           </Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ---------- specialist doctors (4 cards from the database) ---------- */
+type Doctor = {
+  id?: number;
+  name: string;
+  specialization: string | null;
+  department: string | null;
+  photo?: string | null;
+  photo_url?: string | null;
+  image?: string | null;
+};
+
+/* shown if the API has not returned doctors */
+const fallbackDoctors: Doctor[] = [
+  { name: "Dr. Sarah Khan", specialization: "Cardiologist", department: "Cardiology" },
+  { name: "Dr. Omar Rahimi", specialization: "Neurologist", department: "Neurology" },
+  { name: "Dr. Maya Anderson", specialization: "Pediatrician", department: "Pediatrics" },
+  { name: "Dr. Daniel Wilson", specialization: "Orthopedic Surgeon", department: "Orthopedics" },
+];
+
+const doctorPhotos = ["/doc1.webp", "/doc2.webp", "/doc3.webp", "/doc4.webp"];
+
+/* demo portraits only for the demo doctors (matched by name); every other doctor uses
+   their own photo from the backend, or a designed initials portrait */
+const demoPhotos: Record<string, string> = Object.fromEntries(
+  fallbackDoctors.map((d, i) => [norm(d.name), doctorPhotos[i]])
+);
+const photoFor = (d: Doctor) => d.photo ?? d.photo_url ?? d.image ?? demoPhotos[norm(d.name)] ?? null;
+
+const initialsOf = (name: string) =>
+  name
+    .replace(/^dr\.?\s*/i, "")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w.charAt(0).toUpperCase())
+    .join("");
+
+function DoctorsSection() {
+  const { ref, visible } = useReveal(0.1);
+  const [doctors, setDoctors] = useState<Doctor[] | null>(null);
+
+  useEffect(() => {
+    api
+      .get("/public/doctors")
+      .then((r) => setDoctors(Array.isArray(r.data) ? r.data : []))
+      .catch(() => setDoctors([]));
+  }, []);
+
+  const list = doctors === null ? null : (doctors.length ? doctors : fallbackDoctors).slice(0, 4);
+
+  return (
+    <section ref={ref} className="pb-24 pt-4">
+      <div className="mx-auto max-w-6xl px-4">
+        <div
+          className="text-center transition-all duration-700 ease-out"
+          style={{ opacity: visible ? 1 : 0, transform: visible ? "none" : "translateY(24px)" }}
+        >
+          <h2 className="font-heading text-4xl font-bold tracking-tight text-[var(--ink)] sm:text-5xl">
+            Our specialist doctors
+          </h2>
+          <p className="mx-auto mt-4 max-w-2xl text-[var(--muted)]">
+            Certified specialists from every department — available for in-person
+            consultations and online video visits.
+          </p>
+        </div>
+
+        <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {list === null
+            ? [0, 1, 2, 3].map((i) => (
+                <div key={i} className="h-[430px] animate-pulse rounded-3xl bg-[var(--primary-tint)]/20" />
+              ))
+            : list.map((d, i) => {
+                const photo = photoFor(d);
+                const dept = d.department?.trim() || "General";
+                const spec = d.specialization ?? "Specialist";
+                return (
+                  <article
+                    key={d.id ?? d.name}
+                    className="group flex flex-col overflow-hidden rounded-3xl border border-[var(--border)] bg-white transition-all duration-700 ease-out hover:-translate-y-1 hover:border-[var(--primary-tint)] hover:shadow-xl hover:shadow-[var(--primary-tint)]/30"
+                    style={{
+                      opacity: visible ? 1 : 0,
+                      transform: visible ? "none" : "translateY(40px)",
+                      transitionDelay: `${200 + i * 150}ms`,
+                    }}
+                  >
+                    {/* portrait + glass panel */}
+                    <div className="relative h-80 overflow-hidden bg-gradient-to-br from-[var(--primary-tint)]/50 via-[var(--primary-tint)]/25 to-white">
+                      {photo ? (
+                        <img
+                          src={photo}
+                          alt={d.name}
+                          className="h-full w-full object-cover object-top transition-transform duration-[900ms] ease-out group-hover:scale-105"
+                        />
+                      ) : (
+                        <div className="relative flex h-full w-full items-center justify-center overflow-hidden bg-gradient-to-br from-[var(--primary)] to-[var(--muted)]">
+                          <span className="absolute -right-10 -top-10 h-48 w-48 rounded-full bg-white/10" />
+                          <span className="absolute -bottom-16 -left-10 h-56 w-56 rounded-full bg-white/10" />
+                          <span className="font-heading relative text-7xl font-bold tracking-tight text-white/85">
+                            {initialsOf(d.name)}
+                          </span>
+                        </div>
+                      )}
+                      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent" />
+
+                      <span className="absolute left-4 top-4 rounded-full border border-white/40 bg-white/60 px-3 py-1 text-[11px] font-medium text-[var(--ink)] backdrop-blur-md">
+                        {dept}
+                      </span>
+
+                      <div className="absolute bottom-4 left-4 right-4 rounded-2xl border border-white/40 bg-white/60 p-4 shadow-lg backdrop-blur-md transition-transform duration-500 group-hover:-translate-y-1">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="truncate text-sm font-semibold text-[var(--ink)]">{d.name}</div>
+                            <div className="truncate text-xs text-[var(--muted)]">{spec}</div>
+                          </div>
+                          <span className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-white/80 text-emerald-600">
+                            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="m5 13 4 4L19 7"/>
+                            </svg>
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-5">
+                      <Link
+                        href={`/register?doctor=${encodeURIComponent(d.name)}&department=${encodeURIComponent(dept)}`}
+                        className="btn-roll inline-flex w-full items-center justify-center gap-2 rounded-full bg-[var(--primary)] px-5 py-3 text-xs  uppercase  text-white  "
+                      >
+                        <span className="roll">
+                          <span className="r1">Book appointment</span>
+                          <span className="r2" aria-hidden="true">Book appointment</span>
+                        </span>
+                      </Link>
+                    </div>
+                  </article>
+                );
+              })}
+        </div>
+
+        <div
+          className="mt-14 text-center transition-all duration-700 ease-out"
+          style={{
+            opacity: visible ? 1 : 0,
+            transform: visible ? "none" : "translateY(24px)",
+            transitionDelay: "800ms",
+          }}
+        >
+          <Link
+            href="/doctors"
+            className="bg-[var(--primary-tint)] btn-hero btn-roll inline-flex items-center gap-2 rounded-full px-8 py-3 text-xs uppercase"
+          >
+            <span className="roll">
+              <span className="r1">See all doctors</span>
+              <span className="r2" aria-hidden="true">See all doctors</span>
+            </span>
+          </Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ---------- about — our story (left) + our work chart (right) ---------- */
+/* Edit the values to your real share of work — they are turned into percentages automatically. */
+const aboutSegments = [
+  {
+    title: "Emergency & Critical Care",
+    lines: ["Emergency &", "Critical Care"],
+    value: 28,
+    icon: "emergency",
+    text: "Rapid triage and coordinated care around the clock, every day of the year.",
+  },
+  {
+    title: "Diagnostics & Laboratory",
+    lines: ["Diagnostics", "& Laboratory"],
+    value: 22,
+    icon: "lab",
+    text: "Same-day testing and imaging, with verified results sent straight to your patient portal.",
+  },
+  {
+    title: "Specialist Care",
+    lines: ["Specialist", "Care"],
+    value: 50,
+    icon: "specialist",
+    text: "Consultations and follow-ups with our specialists in every department — with your full history already on file.",
+  },
+];
+
+const aboutIcons: Record<string, React.ReactNode> = {
+  emergency: (
+    <>
+      <rect x="3" y="3" width="18" height="18" rx="3" />
+      <path d="M12 8v8M8 12h8" />
+    </>
+  ),
+  lab: <path d="M10 2v6.5L4.5 19a2 2 0 0 0 1.8 3h11.4a2 2 0 0 0 1.8-3L14 8.5V2M8.5 2h7M7 16h10" />,
+  specialist: (
+    <>
+      <path d="M11 2v2M5 2v2M5 3H4a2 2 0 0 0-2 2v4a6 6 0 0 0 12 0V5a2 2 0 0 0-2-2h-1M8 15a6 6 0 0 0 12 0v-3" />
+      <circle cx="20" cy="10" r="2" />
+    </>
+  ),
+};
+
+/* label colour per slice position: vivid, mid, pale */
+const aboutTextFill = ["#fff", "#fff", "var(--primary)"];
+
+const CX = 200;
+const CY = 200;
+const HOLE = 62; // inner radius (white hole)
+const OUTER = 150; // outer radius of every slice
+
+/* point on a circle, angle in degrees measured clockwise from 12 o'clock */
+const pt = (r: number, deg: number) => {
+  const a = (deg * Math.PI) / 180;
+  return { x: CX + r * Math.sin(a), y: CY - r * Math.cos(a) };
+};
+const f = (n: number) => n.toFixed(2);
+
+/* ring-shaped slice between two angles */
+const sector = (a0: number, a1: number, r0: number, r1: number) => {
+  const p0 = pt(r1, a0), p1 = pt(r1, a1), p2 = pt(r0, a1), p3 = pt(r0, a0);
+  const large = a1 - a0 > 180 ? 1 : 0;
+  return `M${f(p0.x)} ${f(p0.y)} A${r1} ${r1} 0 ${large} 1 ${f(p1.x)} ${f(p1.y)} L${f(p2.x)} ${f(p2.y)} A${r0} ${r0} 0 ${large} 0 ${f(p3.x)} ${f(p3.y)} Z`;
+};
+
+function AboutSection() {
+  const { ref, visible } = useReveal(0.15);
+  const [active, setActive] = useState(0);
+  const [paused, setPaused] = useState(false);
+
+  /* gently cycles through the slices until the visitor hovers or touches the chart */
+  useEffect(() => {
+    if (paused || !visible) return;
+    const id = setInterval(() => setActive((i) => (i + 1) % aboutSegments.length), 4800);
+    return () => clearInterval(id);
+  }, [paused, visible]);
+
+  const total = aboutSegments.reduce((sum, g) => sum + g.value, 0);
+  let acc = 0;
+  const slices = aboutSegments.map((g, i) => {
+    const a0 = (acc / total) * 360;
+    acc += g.value;
+    const a1 = (acc / total) * 360;
+    const mid = (a0 + a1) / 2;
+    return { ...g, i, a0, a1, mid, pct: Math.round((g.value / total) * 100) };
+  });
+  const arcStart = pt(190, 225);
+  const arcEnd = pt(190, 359.9);
+  const current = slices[active];
+
+  return (
+    <section ref={ref} className="py-24">
+      <div className="mx-auto grid max-w-6xl items-center gap-14 px-4 lg:grid-cols-2 lg:gap-10">
+        {/* left: our story */}
+        <div
+          className="transition-all duration-700 ease-out"
+          style={{ opacity: visible ? 1 : 0, transform: visible ? "none" : "translateY(24px)" }}
+        >
+          <h2 className="font-heading text-4xl font-bold tracking-tight text-[var(--ink)] sm:text-5xl">
+            Why we started Dr&apos;Bloom
+          </h2>
+          <p className="mt-8 max-w-xl leading-relaxed text-[var(--muted)]">
+            We saw firsthand how fragmented hospital care can be — patients repeating their
+            history at every desk, waiting on paper records, and never knowing what their
+            treatment would cost. That outdated way of running a hospital costs patients time,
+            money, and peace of mind.
+          </p>
+          <p className="mt-5 max-w-xl leading-relaxed text-[var(--muted)]">
+            With backgrounds in healthcare and technology, we built Dr&apos;Bloom to change that.
+            One connected system links our emergency team, specialists, laboratory, and
+            pharmacy — reducing waiting times and keeping your care consistent from your first
+            consultation to full recovery.
+          </p>
+          <div className="mt-9">
+            <Link
+              href="/about"
+              className="bg-[var(--primary-tint)] btn-hero btn-roll inline-flex items-center gap-2 rounded-full px-8 py-3 text-xs uppercase"
+            >
+              <span className="roll">
+                <span className="r1">About us</span>
+                <span className="r2" aria-hidden="true">About us</span>
+              </span>
+            </Link>
+          </div>
+        </div>
+
+        {/* right: our work — interactive donut chart */}
+        <div
+          className="mx-auto w-full max-w-[480px]"
+          onMouseEnter={() => setPaused(true)}
+          onMouseLeave={() => setPaused(false)}
+        >
+          <div className="relative aspect-square w-full">
+            <svg
+              viewBox="0 0 400 400"
+              className="h-full w-full overflow-visible"
+              role="group"
+              aria-label="Our work by area of care"
+              style={{
+                transformOrigin: "50% 50%",
+                transform: visible ? "scale(1)" : "scale(0.82)",
+                opacity: visible ? 1 : 0,
+                transition: "transform 1.2s cubic-bezier(.2,.8,.2,1), opacity 1s ease-out",
+              }}
+            >
+              <defs>
+                {/* vivid */}
+                <radialGradient id="aboutG0" gradientUnits="userSpaceOnUse" cx={CX} cy={CY} r="175">
+                  <stop offset="0.35" style={{ stopColor: "var(--primary)", stopOpacity: 1 }} />
+                  <stop offset="0.65" style={{ stopColor: "var(--primary)", stopOpacity: 0.8 }} />
+                  <stop offset="1" style={{ stopColor: "var(--primary-tint)", stopOpacity: 0.95 }} />
+                </radialGradient>
+                {/* mid */}
+                <radialGradient id="aboutG1" gradientUnits="userSpaceOnUse" cx={CX} cy={CY} r="175">
+                  <stop offset="0.35" style={{ stopColor: "var(--primary)", stopOpacity: 0.85 }} />
+                  <stop offset="1" style={{ stopColor: "var(--primary)", stopOpacity: 0.5 }} />
+                </radialGradient>
+                {/* pale */}
+                <radialGradient id="aboutG2" gradientUnits="userSpaceOnUse" cx={CX} cy={CY} r="175">
+                  <stop offset="0.35" style={{ stopColor: "var(--primary-tint)", stopOpacity: 0.85 }} />
+                  <stop offset="1" style={{ stopColor: "var(--primary-tint)", stopOpacity: 0.35 }} />
+                </radialGradient>
+              </defs>
+
+              {/* thin decorative outer arc */}
+              <path
+                d={`M${f(arcStart.x)} ${f(arcStart.y)} A190 190 0 0 1 ${f(arcEnd.x)} ${f(arcEnd.y)}`}
+                fill="none"
+                strokeWidth="1.5"
+                style={{ stroke: "var(--primary-tint)", strokeOpacity: 0.8 }}
+              />
+
+              {/* slices */}
+              {slices.map((g) => {
+                const isActive = g.i === active;
+                const out = isActive ? 12 : 0;
+                const dx = out * Math.sin((g.mid * Math.PI) / 180);
+                const dy = -out * Math.cos((g.mid * Math.PI) / 180);
+                const c = pt((HOLE + OUTER) / 2 + 4, g.mid);
+                return (
+                  <g
+                    key={g.title}
+                    role="button"
+                    tabIndex={0}
+                    aria-pressed={isActive}
+                    aria-label={`${g.title}, ${g.pct}%`}
+                    onMouseEnter={() => setActive(g.i)}
+                    onFocus={() => setActive(g.i)}
+                    onClick={() => setActive(g.i)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setActive(g.i);
+                      }
+                    }}
+                    style={{
+                      cursor: "pointer",
+                      outline: "none",
+                      transform: `translate(${f(dx)}px, ${f(dy)}px)`,
+                      transition: "transform 500ms cubic-bezier(.2,.8,.2,1), opacity 400ms ease, filter 400ms ease",
+                      opacity: isActive ? 1 : 0.82,
+                      filter: isActive ? "drop-shadow(0 10px 16px rgba(0,0,0,0.18))" : "none",
+                    }}
+                  >
+                    <path
+                      d={sector(g.a0, g.a1, HOLE, OUTER)}
+                      fill={`url(#aboutG${g.i % 3})`}
+                      stroke="#fff"
+                      strokeWidth="2"
+                      strokeOpacity="0.8"
+                      strokeLinejoin="round"
+                    />
+                    {/* icon + label */}
+                    <g
+                      transform={`translate(${f(c.x - 11.4)} ${f(c.y - 30)}) scale(0.95)`}
+                      fill="none"
+                      strokeWidth="1.7"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      style={{ stroke: aboutTextFill[g.i % 3], pointerEvents: "none" }}
+                    >
+                      {aboutIcons[g.icon]}
+                    </g>
+                    <text
+                      x={f(c.x)}
+                      y={f(c.y + 6)}
+                      textAnchor="middle"
+                      fontSize="11"
+                      fontWeight="500"
+                      style={{ fill: aboutTextFill[g.i % 3], pointerEvents: "none" }}
+                    >
+                      {g.lines.map((line, k) => (
+                        <tspan key={line} x={f(c.x)} dy={k === 0 ? 0 : 13}>
+                          {line}
+                        </tspan>
+                      ))}
+                    </text>
+                  </g>
+                );
+              })}
+
+              {/* white center hole */}
+              <circle
+                cx={CX}
+                cy={CY}
+                r={HOLE - 1}
+                fill="#fff"
+                strokeWidth="1"
+                style={{ stroke: "var(--primary-tint)", strokeOpacity: 0.5, pointerEvents: "none" }}
+              />
+            </svg>
+
+            {/* center: share of the active slice */}
+            <div
+              key={active}
+              className="anim-show pointer-events-none absolute left-1/2 top-1/2 w-[28%] -translate-x-1/2 -translate-y-1/2 text-center"
+            >
+              <div className="font-heading text-xl font-bold tabular-nums text-[var(--primary)] sm:text-3xl">
+                {current.pct}%
+              </div>
+              <div className="text-[8px] text-[var(--muted)] sm:text-[10px]">of our work</div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -789,8 +1277,14 @@ export default function HomePage() {
       {/* Stats — major-hospital numbers */}
       <StatsStrip info={info} />
 
-      {/* Healthcare designed around you — 3 cards */}
-      <AdvantageSection />
+      {/* Our departments — 3 cards from the database */}
+      <DepartmentsSection />
+
+      {/* Our specialist doctors — 4 cards from the database */}
+      <DoctorsSection />
+
+      {/* About — our story + our work chart */}
+      <AboutSection />
 
       {/* Your care, in one portal — auto-looping animated story */}
       <PortalShowcase />
