@@ -304,10 +304,27 @@ function DoctorsSection() {
       .catch(() => setDoctors([]));
   }, []);
 
-  const list = doctors === null ? null : (doctors.length ? doctors : fallbackDoctors).slice(0, 4);
+  const list = doctors === null ? null : (doctors.length ? doctors : fallbackDoctors).slice(0, 12);
+
+  /* repeat the list until one copy is wide enough, then use two copies for a seamless loop */
+  const base: Doctor[] = list
+    ? Array.from({ length: Math.max(1, Math.ceil(8 / list.length)) }, () => list).flat()
+    : [];
+  const track = [...base, ...base];
+  const duration = `${Math.max(base.length, 1) * 7}s`; // slow, calm speed
 
   return (
-    <section ref={ref} className="pb-24 pt-4">
+    <section ref={ref} className="overflow-hidden pb-24 pt-4">
+      <style>{`
+        @keyframes drMarquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+        .dr-track { display: flex; width: max-content; animation: drMarquee var(--dur, 60s) linear infinite; will-change: transform; }
+        .dr-wrap:hover .dr-track { animation-play-state: paused; }
+        @media (prefers-reduced-motion: reduce) {
+          .dr-track { animation: none; }
+          .dr-wrap { overflow-x: auto; }
+        }
+      `}</style>
+
       <div className="mx-auto max-w-6xl px-4">
         <div
           className="text-center transition-all duration-700 ease-out"
@@ -321,195 +338,101 @@ function DoctorsSection() {
             consultations and online video visits.
           </p>
         </div>
+      </div>
 
-        <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {list === null
-            ? [0, 1, 2, 3].map((i) => (
-                <div key={i} className="h-[430px] animate-pulse rounded-3xl bg-[var(--primary-tint)]/20" />
-              ))
-            : list.map((d, i) => {
-                const photo = photoFor(d);
-                const dept = d.department?.trim() || "General";
-                const spec = d.specialization ?? "Specialist";
-                return (
-                  <article
-                    key={d.id ?? d.name}
-                    className="group flex flex-col overflow-hidden rounded-3xl border border-[var(--border)] bg-white transition-all duration-700 ease-out hover:-translate-y-1 hover:border-[var(--primary-tint)] hover:shadow-xl hover:shadow-[var(--primary-tint)]/30"
-                    style={{
-                      opacity: visible ? 1 : 0,
-                      transform: visible ? "none" : "translateY(40px)",
-                      transitionDelay: `${200 + i * 150}ms`,
-                    }}
-                  >
-                    {/* portrait + glass panel */}
-                    <div className="relative h-80 overflow-hidden bg-gradient-to-br from-[var(--primary-tint)]/50 via-[var(--primary-tint)]/25 to-white">
-                      {photo ? (
-                        <img
-                          src={photo}
-                          alt={d.name}
-                          className="h-full w-full object-cover object-top transition-transform duration-[900ms] ease-out group-hover:scale-105"
-                        />
-                      ) : (
-                        <div className="relative flex h-full w-full items-center justify-center overflow-hidden bg-gradient-to-br from-[var(--primary)] to-[var(--muted)]">
-                          <span className="absolute -right-10 -top-10 h-48 w-48 rounded-full bg-white/10" />
-                          <span className="absolute -bottom-16 -left-10 h-56 w-56 rounded-full bg-white/10" />
-                          <span className="font-heading relative text-7xl font-bold tracking-tight text-white/85">
-                            {initialsOf(d.name)}
-                          </span>
-                        </div>
-                      )}
-                      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent" />
-
-                      <span className="absolute left-4 top-4 rounded-full border border-white/40 bg-white/60 px-3 py-1 text-[11px] font-medium text-[var(--ink)] backdrop-blur-md">
-                        {dept}
+      <div className="mx-auto max-w-6xl px-4">
+      {/* carousel — slides slowly from right to left, pauses on hover */}
+      <div
+        className="dr-wrap mt-11 overflow-hidden py-3 transition-all duration-1000 ease-out"
+        style={{
+          opacity: visible ? 1 : 0,
+          transform: visible ? "none" : "translateY(30px)",
+          WebkitMaskImage: "linear-gradient(to right, transparent, #000 8%, #000 92%, transparent)",
+          maskImage: "linear-gradient(to right, transparent, #000 8%, #000 92%, transparent)",
+        }}
+      >
+        {list === null ? (
+          <div className="flex">
+            {[0, 1, 2, 3, 4].map((i) => (
+              <div key={i} className="mr-5 h-[340px] w-[260px] flex-none animate-pulse rounded-3xl bg-[var(--primary-tint)]/20" />
+            ))}
+          </div>
+        ) : (
+          <div className="dr-track" style={{ ["--dur" as string]: duration } as React.CSSProperties}>
+            {track.map((d, i) => {
+              const photo = photoFor(d);
+              const dept = d.department?.trim() || "General";
+              const spec = d.specialization ?? "Specialist";
+              const isCopy = i >= base.length;
+              return (
+                <Link
+                  key={`${i}-${d.name}`}
+                  href={`/doctors?department=${encodeURIComponent(dept)}`}
+                  aria-hidden={isCopy || undefined}
+                  tabIndex={isCopy ? -1 : undefined}
+                  className="group relative mr-5 h-[340px] w-[260px] flex-none overflow-hidden rounded-3xl border border-[var(--border)] bg-gradient-to-b from-white to-[var(--primary-tint)]/20 shadow-sm transition-all duration-500 hover:-translate-y-1 hover:border-[var(--primary-tint)] hover:shadow-xl hover:shadow-[var(--primary-tint)]/30"
+                >
+                  {photo ? (
+                    <img
+                      src={photo}
+                      alt={isCopy ? "" : d.name}
+                      draggable={false}
+                      className="absolute inset-0 h-full w-full object-cover object-top transition-transform duration-[1200ms] ease-out group-hover:scale-105"
+                    />
+                  ) : (
+                    <div className="absolute inset-0 flex items-start justify-center overflow-hidden bg-gradient-to-br from-[var(--primary-tint)]/50 to-[var(--primary-tint)]/15 pt-16">
+                      <span className="font-heading text-7xl font-bold tracking-tight text-[var(--primary)]/70">
+                        {initialsOf(d.name)}
                       </span>
-
-                      <div className="absolute bottom-4 left-4 right-4 rounded-2xl border border-white/40 bg-white/60 p-4 shadow-lg backdrop-blur-md transition-transform duration-500 group-hover:-translate-y-1">
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="min-w-0">
-                            <div className="truncate text-sm font-semibold text-[var(--ink)]">{d.name}</div>
-                            <div className="truncate text-xs text-[var(--muted)]">{spec}</div>
-                          </div>
-                          <span className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-white/80 text-emerald-600">
-                            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="m5 13 4 4L19 7"/>
-                            </svg>
-                          </span>
-                        </div>
-                      </div>
                     </div>
+                  )}
 
-                    <div className="p-5">
-                      <Link
-                        href={`/register?doctor=${encodeURIComponent(d.name)}&department=${encodeURIComponent(dept)}`}
-                        className="btn-roll inline-flex w-full items-center justify-center gap-2 rounded-full bg-[var(--primary)] px-5 py-3 text-xs  uppercase  text-white  "
-                      >
-                        <span className="roll">
-                          <span className="r1">Book appointment</span>
-                          <span className="r2" aria-hidden="true">Book appointment</span>
-                        </span>
-                      </Link>
-                    </div>
-                  </article>
-                );
-              })}
-        </div>
+                  {/* soft white fade + name and specialty, bottom left */}
+                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-white via-white/90 to-transparent px-5 pb-5 pt-20">
+                    <div className="font-heading text-sm font-semibold text-[var(--ink)]">{d.name}</div>
+                    <div className="mt-1 text-[11px] text-[var(--muted)]">{spec}</div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
-        <div
-          className="mt-14 text-center transition-all duration-700 ease-out"
-          style={{
-            opacity: visible ? 1 : 0,
-            transform: visible ? "none" : "translateY(24px)",
-            transitionDelay: "800ms",
-          }}
+      </div>
+
+      <div
+        className="mt-14 text-center transition-all duration-700 ease-out"
+        style={{
+          opacity: visible ? 1 : 0,
+          transform: visible ? "none" : "translateY(24px)",
+          transitionDelay: "400ms",
+        }}
+      >
+        <Link
+          href="/doctors"
+          className="bg-[var(--primary-tint)] btn-hero btn-roll inline-flex items-center gap-2 rounded-full px-8 py-3 text-xs uppercase"
         >
-          <Link
-            href="/doctors"
-            className="bg-[var(--primary-tint)] btn-hero btn-roll inline-flex items-center gap-2 rounded-full px-8 py-3 text-xs uppercase"
-          >
-            <span className="roll">
-              <span className="r1">See all doctors</span>
-              <span className="r2" aria-hidden="true">See all doctors</span>
-            </span>
-          </Link>
-        </div>
+          <span className="roll">
+            <span className="r1">See all doctors</span>
+            <span className="r2" aria-hidden="true">See all doctors</span>
+          </span>
+        </Link>
       </div>
     </section>
   );
 }
 
-/* ---------- about — our story (left) + our work chart (right) ---------- */
-/* Edit the values to your real share of work — they are turned into percentages automatically. */
-const aboutSegments = [
-  {
-    title: "Emergency & Critical Care",
-    lines: ["Emergency &", "Critical Care"],
-    value: 28,
-    icon: "emergency",
-    text: "Rapid triage and coordinated care around the clock, every day of the year.",
-  },
-  {
-    title: "Diagnostics & Laboratory",
-    lines: ["Diagnostics", "& Laboratory"],
-    value: 22,
-    icon: "lab",
-    text: "Same-day testing and imaging, with verified results sent straight to your patient portal.",
-  },
-  {
-    title: "Specialist Care",
-    lines: ["Specialist", "Care"],
-    value: 50,
-    icon: "specialist",
-    text: "Consultations and follow-ups with our specialists in every department — with your full history already on file.",
-  },
-];
-
-const aboutIcons: Record<string, React.ReactNode> = {
-  emergency: (
-    <>
-      <rect x="3" y="3" width="18" height="18" rx="3" />
-      <path d="M12 8v8M8 12h8" />
-    </>
-  ),
-  lab: <path d="M10 2v6.5L4.5 19a2 2 0 0 0 1.8 3h11.4a2 2 0 0 0 1.8-3L14 8.5V2M8.5 2h7M7 16h10" />,
-  specialist: (
-    <>
-      <path d="M11 2v2M5 2v2M5 3H4a2 2 0 0 0-2 2v4a6 6 0 0 0 12 0V5a2 2 0 0 0-2-2h-1M8 15a6 6 0 0 0 12 0v-3" />
-      <circle cx="20" cy="10" r="2" />
-    </>
-  ),
-};
-
-/* label colour per slice position: vivid, mid, pale */
-const aboutTextFill = ["#fff", "#fff", "var(--primary)"];
-
-const CX = 200;
-const CY = 200;
-const HOLE = 62; // inner radius (white hole)
-const OUTER = 150; // outer radius of every slice
-
-/* point on a circle, angle in degrees measured clockwise from 12 o'clock */
-const pt = (r: number, deg: number) => {
-  const a = (deg * Math.PI) / 180;
-  return { x: CX + r * Math.sin(a), y: CY - r * Math.cos(a) };
-};
-const f = (n: number) => n.toFixed(2);
-
-/* ring-shaped slice between two angles */
-const sector = (a0: number, a1: number, r0: number, r1: number) => {
-  const p0 = pt(r1, a0), p1 = pt(r1, a1), p2 = pt(r0, a1), p3 = pt(r0, a0);
-  const large = a1 - a0 > 180 ? 1 : 0;
-  return `M${f(p0.x)} ${f(p0.y)} A${r1} ${r1} 0 ${large} 1 ${f(p1.x)} ${f(p1.y)} L${f(p2.x)} ${f(p2.y)} A${r0} ${r0} 0 ${large} 0 ${f(p3.x)} ${f(p3.y)} Z`;
-};
+/* ---------- about — our story (left) + image (right) ---------- */
+/* Put your own photo in the /public folder and change this path (e.g. "/about.webp") */
+const aboutImage = "/7.webp";
 
 function AboutSection() {
   const { ref, visible } = useReveal(0.15);
-  const [active, setActive] = useState(0);
-  const [paused, setPaused] = useState(false);
-
-  /* gently cycles through the slices until the visitor hovers or touches the chart */
-  useEffect(() => {
-    if (paused || !visible) return;
-    const id = setInterval(() => setActive((i) => (i + 1) % aboutSegments.length), 4800);
-    return () => clearInterval(id);
-  }, [paused, visible]);
-
-  const total = aboutSegments.reduce((sum, g) => sum + g.value, 0);
-  let acc = 0;
-  const slices = aboutSegments.map((g, i) => {
-    const a0 = (acc / total) * 360;
-    acc += g.value;
-    const a1 = (acc / total) * 360;
-    const mid = (a0 + a1) / 2;
-    return { ...g, i, a0, a1, mid, pct: Math.round((g.value / total) * 100) };
-  });
-  const arcStart = pt(190, 225);
-  const arcEnd = pt(190, 359.9);
-  const current = slices[active];
 
   return (
-    <section ref={ref} className="py-24">
-      <div className="mx-auto grid max-w-6xl items-center gap-14 px-4 lg:grid-cols-2 lg:gap-10">
+    <section ref={ref} className="overflow-x-clip py-24">
+      <div className="mx-auto grid max-w-6xl items-center gap-14 px-4 lg:grid-cols-2 lg:gap-16">
         {/* left: our story */}
         <div
           className="transition-all duration-700 ease-out"
@@ -543,141 +466,46 @@ function AboutSection() {
           </div>
         </div>
 
-        {/* right: our work — interactive donut chart */}
+        {/* right: image card with tilted layers behind it */}
         <div
-          className="mx-auto w-full max-w-[480px]"
-          onMouseEnter={() => setPaused(true)}
-          onMouseLeave={() => setPaused(false)}
+          className="group relative mx-auto w-full max-w-[520px] transition-all duration-1000 ease-out"
+          style={{
+            opacity: visible ? 1 : 0,
+            transform: visible ? "none" : "translateY(40px)",
+            transitionDelay: "200ms",
+          }}
         >
-          <div className="relative aspect-square w-full">
-            <svg
-              viewBox="0 0 400 400"
-              className="h-full w-full overflow-visible"
-              role="group"
-              aria-label="Our work by area of care"
-              style={{
-                transformOrigin: "50% 50%",
-                transform: visible ? "scale(1)" : "scale(0.82)",
-                opacity: visible ? 1 : 0,
-                transition: "transform 1.2s cubic-bezier(.2,.8,.2,1), opacity 1s ease-out",
-              }}
-            >
-              <defs>
-                {/* vivid */}
-                <radialGradient id="aboutG0" gradientUnits="userSpaceOnUse" cx={CX} cy={CY} r="175">
-                  <stop offset="0.35" style={{ stopColor: "var(--primary)", stopOpacity: 1 }} />
-                  <stop offset="0.65" style={{ stopColor: "var(--primary)", stopOpacity: 0.8 }} />
-                  <stop offset="1" style={{ stopColor: "var(--primary-tint)", stopOpacity: 0.95 }} />
-                </radialGradient>
-                {/* mid */}
-                <radialGradient id="aboutG1" gradientUnits="userSpaceOnUse" cx={CX} cy={CY} r="175">
-                  <stop offset="0.35" style={{ stopColor: "var(--primary)", stopOpacity: 0.85 }} />
-                  <stop offset="1" style={{ stopColor: "var(--primary)", stopOpacity: 0.5 }} />
-                </radialGradient>
-                {/* pale */}
-                <radialGradient id="aboutG2" gradientUnits="userSpaceOnUse" cx={CX} cy={CY} r="175">
-                  <stop offset="0.35" style={{ stopColor: "var(--primary-tint)", stopOpacity: 0.85 }} />
-                  <stop offset="1" style={{ stopColor: "var(--primary-tint)", stopOpacity: 0.35 }} />
-                </radialGradient>
-              </defs>
+          {/* tilted containers at the back */}
+          <div
+            aria-hidden="true"
+            className={`absolute inset-0 rounded-[32px] bg-[var(--primary-tint)]/70 transition-transform duration-[1200ms] ease-out ${
+              visible ? "-translate-x-3.5 -translate-y-2 -rotate-[5deg] group-hover:-rotate-[7deg]" : ""
+            }`}
+          />
+          <div
+            aria-hidden="true"
+            className={`absolute inset-0 rounded-[32px] bg-[var(--primary)]/20 transition-transform duration-[1200ms] ease-out ${
+              visible ? "translate-x-3 translate-y-2.5 rotate-[4deg] group-hover:rotate-[6deg]" : ""
+            }`}
+          />
 
-              {/* thin decorative outer arc */}
-              <path
-                d={`M${f(arcStart.x)} ${f(arcStart.y)} A190 190 0 0 1 ${f(arcEnd.x)} ${f(arcEnd.y)}`}
-                fill="none"
-                strokeWidth="1.5"
-                style={{ stroke: "var(--primary-tint)", strokeOpacity: 0.8 }}
+          {/* white card */}
+          <div className="relative rounded-[28px] border border-white bg-white p-4 shadow-2xl shadow-[var(--primary)]/15">
+            <div className="relative overflow-hidden rounded-2xl">
+              <img
+                src={aboutImage}
+                alt="Dr'Bloom Hospital"
+                className="aspect-[5/4] w-full object-cover transition-transform duration-[1400ms] ease-out group-hover:scale-105"
               />
+            </div>
 
-              {/* slices */}
-              {slices.map((g) => {
-                const isActive = g.i === active;
-                const out = isActive ? 12 : 0;
-                const dx = out * Math.sin((g.mid * Math.PI) / 180);
-                const dy = -out * Math.cos((g.mid * Math.PI) / 180);
-                const c = pt((HOLE + OUTER) / 2 + 4, g.mid);
-                return (
-                  <g
-                    key={g.title}
-                    role="button"
-                    tabIndex={0}
-                    aria-pressed={isActive}
-                    aria-label={`${g.title}, ${g.pct}%`}
-                    onMouseEnter={() => setActive(g.i)}
-                    onFocus={() => setActive(g.i)}
-                    onClick={() => setActive(g.i)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        setActive(g.i);
-                      }
-                    }}
-                    style={{
-                      cursor: "pointer",
-                      outline: "none",
-                      transform: `translate(${f(dx)}px, ${f(dy)}px)`,
-                      transition: "transform 500ms cubic-bezier(.2,.8,.2,1), opacity 400ms ease, filter 400ms ease",
-                      opacity: isActive ? 1 : 0.82,
-                      filter: isActive ? "drop-shadow(0 10px 16px rgba(0,0,0,0.18))" : "none",
-                    }}
-                  >
-                    <path
-                      d={sector(g.a0, g.a1, HOLE, OUTER)}
-                      fill={`url(#aboutG${g.i % 3})`}
-                      stroke="#fff"
-                      strokeWidth="2"
-                      strokeOpacity="0.8"
-                      strokeLinejoin="round"
-                    />
-                    {/* icon + label */}
-                    <g
-                      transform={`translate(${f(c.x - 11.4)} ${f(c.y - 30)}) scale(0.95)`}
-                      fill="none"
-                      strokeWidth="1.7"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      style={{ stroke: aboutTextFill[g.i % 3], pointerEvents: "none" }}
-                    >
-                      {aboutIcons[g.icon]}
-                    </g>
-                    <text
-                      x={f(c.x)}
-                      y={f(c.y + 6)}
-                      textAnchor="middle"
-                      fontSize="11"
-                      fontWeight="500"
-                      style={{ fill: aboutTextFill[g.i % 3], pointerEvents: "none" }}
-                    >
-                      {g.lines.map((line, k) => (
-                        <tspan key={line} x={f(c.x)} dy={k === 0 ? 0 : 13}>
-                          {line}
-                        </tspan>
-                      ))}
-                    </text>
-                  </g>
-                );
-              })}
-
-              {/* white center hole */}
-              <circle
-                cx={CX}
-                cy={CY}
-                r={HOLE - 1}
-                fill="#fff"
-                strokeWidth="1"
-                style={{ stroke: "var(--primary-tint)", strokeOpacity: 0.5, pointerEvents: "none" }}
-              />
-            </svg>
-
-            {/* center: share of the active slice */}
-            <div
-              key={active}
-              className="anim-show pointer-events-none absolute left-1/2 top-1/2 w-[28%] -translate-x-1/2 -translate-y-1/2 text-center"
-            >
-              <div className="font-heading text-xl font-bold tabular-nums text-[var(--primary)] sm:text-3xl">
-                {current.pct}%
+            {/* title */}
+            <div className="mt-4 px-1 pb-1">
+              <div className="font-heading text-xl font-medium leading-snug text-[var(--ink)]">
+                One connected system
+                <br />
+                for your care
               </div>
-              <div className="text-[8px] text-[var(--muted)] sm:text-[10px]">of our work</div>
             </div>
           </div>
         </div>
