@@ -33,7 +33,7 @@ export default function PrivacyRequestsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="w-full">
       <PageHeader title="Privacy requests" subtitle="Patient data-export and account-deletion requests. Every action here is written to the audit log." />
       {msg && !target && <div className="mb-4"><Notice kind={msg.kind}>{msg.text}</Notice></div>}
       <div className="mb-4"><label htmlFor="pr-status" className="sr-only">Filter by status</label>

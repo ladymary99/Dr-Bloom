@@ -11,13 +11,14 @@ class LabTest extends Model
         'patient_id', 'visit_id', 'doctor_id', 'test_name',
         'status', 'result', 'notes', 'completed_at', 'category',
         'result_file_path', 'result_file_name', 'result_file_size', 'released_at',
+        'is_critical', 'reviewed_at', 'reviewed_by',
     ];
 
     protected $hidden = ['result_file_path'];
 
     protected $appends = ['has_file'];
 
-    protected $casts = ['completed_at' => 'datetime', 'released_at' => 'datetime'];
+    protected $casts = ['completed_at' => 'datetime', 'released_at' => 'datetime', 'reviewed_at' => 'datetime', 'is_critical' => 'boolean'];
 
     public function getHasFileAttribute(): bool
     {

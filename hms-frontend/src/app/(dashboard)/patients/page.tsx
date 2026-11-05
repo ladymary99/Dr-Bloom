@@ -2,7 +2,11 @@
 
 /* eslint-disable react-hooks/set-state-in-effect */
 
-import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { fmtShortDate, fmtShortDateTime } from "@/lib/format";
+import { PatientLookupModal } from "@/components/BreakGlass";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/store/auth";
 import PatientFiles from "@/components/PatientFiles";
@@ -20,6 +24,10 @@ type Patient = {
   address: string | null;
   blood_type: string | null;
   allergies: string | null;
+  last_visit_at?: string | null;
+  next_appointment_at?: string | null;
+  primary_doctor?: string | null;
+  is_admitted?: boolean;
 };
 
 type Paginated = { data: Patient[]; current_page: number; last_page: number; total: number };
@@ -45,136 +53,142 @@ const bloodTypes = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 const inputCls =
   "w-full rounded-xl border border-[var(--border)] bg-white px-4 py-2.5 text-sm text-[var(--ink)] outline-none transition placeholder:text-[var(--muted)]/60 focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--primary-tint)]/30";
 
+type SortKey = "name" | "last_visit" | "next_appointment" | "created";
+
 export default function PatientsPage() {
+  const router = useRouter();
   const hasPermission = useAuthStore((s) => s.hasPermission);
   const canCreate = hasPermission("create patients");
   const canEdit = hasPermission("update patients");
   const roles = useAuthStore((s) => s.roles);
   const canManagePatientFiles = roles.includes("admin") || roles.includes("doctor");
+  const restricted = roles.includes("doctor") && !roles.includes("admin");
 
   const [result, setResult] = useState<Paginated | null>(null);
   const [page, setPage] = useState(1);
-  const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
+  const [debounced, setDebounced] = useState("");
+  const [filters, setFilters] = useState({ gender: "", blood_type: "", age_min: "", age_max: "", condition: "", admitted: false });
+  const [showFilters, setShowFilters] = useState(false);
+  const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "created", dir: "desc" });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [editing, setEditing] = useState<Patient | "new" | null>(null);
+  const [lookup, setLookup] = useState(false);
+  const seq = useRef(0);
 
-  const load = useCallback(async (p: number, s: string) => {
+  // search as you type (debounced); any change goes back to page 1
+  useEffect(() => {
+    const t = setTimeout(() => { setDebounced(search.trim()); setPage(1); }, 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const load = useCallback(async () => {
+    const id = ++seq.current;
     setLoading(true);
     setError("");
     try {
       const { data } = await api.get("/patients", {
-        params: { page: p, search: s || undefined },
+        params: {
+          page, search: debounced || undefined, sort: sort.key, dir: sort.dir,
+          gender: filters.gender || undefined, blood_type: filters.blood_type || undefined, condition: filters.condition || undefined,
+          age_min: filters.age_min || undefined, age_max: filters.age_max || undefined, admitted: filters.admitted ? 1 : undefined,
+        },
       });
-      setResult(data);
+      if (id === seq.current) setResult(data);
     } catch {
-      setError("Could not load patients.");
+      if (id === seq.current) setError("Could not load patients.");
     } finally {
-      setLoading(false);
+      if (id === seq.current) setLoading(false);
     }
-  }, []);
+  }, [page, debounced, sort, filters]);
 
-  useEffect(() => {
-    load(page, search);
-  }, [page, search, load]);
+  useEffect(() => { load(); }, [load]);
 
-  function onSearch(e: React.FormEvent) {
-    e.preventDefault();
-    setPage(1);
-    setSearch(searchInput);
-  }
+  const activeFilters = [filters.gender, filters.blood_type, filters.age_min, filters.age_max, filters.condition].filter(Boolean).length + (filters.admitted ? 1 : 0);
+  const setFilter = (patch: Partial<typeof filters>) => { setFilters((f) => ({ ...f, ...patch })); setPage(1); };
+  const toggleSort = (key: SortKey) => { setSort((s) => (s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" })); setPage(1); };
+  const sortHead = (key: SortKey, label: string) => (
+    <th className="px-4 py-4" aria-sort={sort.key === key ? (sort.dir === "asc" ? "ascending" : "descending") : "none"} scope="col">
+      <button onClick={() => toggleSort(key)} className="flex items-center gap-1 font-semibold hover:text-[var(--primary)]">{label}<span aria-hidden className="text-[10px]">{sort.key === key ? (sort.dir === "asc" ? "▲" : "▼") : "↕"}</span></button>
+    </th>
+  );
+  const selCls = "rounded-xl border border-[var(--border)] bg-white px-3 py-2 text-sm text-[var(--ink)]";
 
   return (
     <div className="animate-fade-up">
-      {/* Header */}
-      <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="font-heading text-3xl font-bold tracking-tight text-[var(--ink)]">Patients</h1>
-          <p className="mt-1 text-sm text-[var(--muted)]">
-            {result ? `${result.total} registered patients` : "Loading…"}
-          </p>
+          <p className="mt-1 text-sm text-[var(--muted)]">{result ? `${result.total} ${restricted ? "patients under your care" : "registered patients"}` : "Loading…"}</p>
         </div>
-
         <div className="flex flex-wrap items-center gap-2">
-          <form onSubmit={onSearch} className="flex gap-2">
-            <input
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Search name or MRN…"
-              className="w-56 rounded-full border border-[var(--border)] bg-white px-4 py-2 text-sm text-[var(--ink)] outline-none transition placeholder:text-[var(--muted)]/60 focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--primary-tint)]/30"
-            />
-            <button type="submit"
-              className="rounded-full border border-[var(--border)] bg-white px-4 py-2 text-sm font-medium text-[var(--muted)] shadow-sm transition hover:border-[var(--primary-tint)] hover:text-[var(--primary)]">
-              Search
-            </button>
-          </form>
+          <div className="relative">
+            <label htmlFor="patient-search" className="sr-only">Search patients by name or MRN</label>
+            <input id="patient-search" type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name or MRN…"
+              className="w-60 rounded-full border border-[var(--border)] bg-white px-4 py-2 text-sm text-[var(--ink)] outline-none transition placeholder:text-[var(--muted)]/70 focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary-tint)]" />
+          </div>
+          <button onClick={() => setShowFilters((v) => !v)} aria-expanded={showFilters} className="rounded-full border border-[var(--border)] bg-white px-4 py-2 text-sm font-medium text-[var(--ink)] shadow-sm hover:border-[var(--primary-tint)]">
+            Filters{activeFilters > 0 && <span className="ml-1.5 rounded-full bg-[var(--primary)] px-1.5 py-0.5 text-[10px] font-bold text-white">{activeFilters}</span>}
+          </button>
+          {restricted && <button onClick={() => setLookup(true)} className="rounded-full border border-[var(--border)] bg-white px-4 py-2 text-sm font-medium text-[var(--ink)] shadow-sm hover:border-[var(--primary-tint)]">Find any patient</button>}
           {canCreate && (
-            <button onClick={() => setEditing("new")}
-              className="rounded-full bg-[var(--primary)] px-5 py-2 text-sm font-medium text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md hover:shadow-[var(--primary)]/20">
-              + Add patient
-            </button>
+            <button onClick={() => setEditing("new")} className="rounded-full bg-[var(--primary)] px-5 py-2 text-sm font-medium text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">+ Add patient</button>
           )}
         </div>
       </div>
 
-      {/* Table */}
-      <div className="overflow-hidden rounded-3xl border border-[var(--border)] bg-white shadow-sm">
+      {showFilters && (
+        <div className="mb-4 flex flex-wrap items-end gap-3 rounded-3xl border border-[var(--border)] bg-white p-4 shadow-sm">
+          <label className="text-xs font-semibold text-[var(--ink)]">Gender<select value={filters.gender} onChange={(e) => setFilter({ gender: e.target.value })} className={`${selCls} mt-1 block`}><option value="">Any</option><option value="male">Male</option><option value="female">Female</option><option value="other">Other</option></select></label>
+          <label className="text-xs font-semibold text-[var(--ink)]">Blood type<select value={filters.blood_type} onChange={(e) => setFilter({ blood_type: e.target.value })} className={`${selCls} mt-1 block`}><option value="">Any</option>{bloodTypes.map((b) => <option key={b}>{b}</option>)}</select></label>
+          <label className="text-xs font-semibold text-[var(--ink)]">Age from<input type="number" min={0} max={130} value={filters.age_min} onChange={(e) => setFilter({ age_min: e.target.value })} className={`${selCls} mt-1 block w-20`} /></label>
+          <label className="text-xs font-semibold text-[var(--ink)]">to<input type="number" min={0} max={130} value={filters.age_max} onChange={(e) => setFilter({ age_max: e.target.value })} className={`${selCls} mt-1 block w-20`} /></label>
+          <label className="text-xs font-semibold text-[var(--ink)]">Condition<input value={filters.condition} placeholder="e.g. diabetes" onChange={(e) => setFilter({ condition: e.target.value })} className={`${selCls} mt-1 block w-44`} /></label>
+          <label className="flex items-center gap-2 pb-2 text-sm"><input type="checkbox" checked={filters.admitted} onChange={(e) => setFilter({ admitted: e.target.checked })} />Currently admitted</label>
+          {activeFilters > 0 && <button onClick={() => setFilter({ gender: "", blood_type: "", age_min: "", age_max: "", condition: "", admitted: false })} className="pb-2 text-sm font-medium text-[var(--primary)] underline">Clear</button>}
+        </div>
+      )}
+
+      <div className="overflow-x-auto rounded-3xl border border-[var(--border)] bg-white shadow-sm">
         {error ? (
-          <div className="p-12 text-center">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-50">
-              <svg viewBox="0 0 24 24" className="h-5 w-5 text-red-500" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
-            </div>
-            <p className="mt-3 text-sm font-medium text-red-600">{error}</p>
-          </div>
+          <div role="alert" className="p-12 text-center"><p className="text-sm font-medium text-red-700">{error}</p><button onClick={load} className="mt-3 rounded-full border border-[var(--border)] px-4 py-1.5 text-sm">Try again</button></div>
         ) : !loading && !result?.data.length ? (
-          <div className="p-12 text-center">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[var(--primary-tint)]/20">
-              <svg viewBox="0 0 24 24" className="h-5 w-5 text-[var(--primary)]" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-            </div>
-            <p className="mt-3 text-sm text-[var(--muted)]">No patients found.</p>
-          </div>
+          <div className="p-12 text-center"><p className="text-sm font-medium text-[var(--ink)]">{debounced || activeFilters ? "No patients match your search." : restricted ? "No patients under your care yet." : "No patients yet."}</p>
+            <p className="mt-1 text-sm text-[var(--muted)]">{restricted && !debounced ? "Patients appear here once they book with you. Use “Find any patient” for an emergency." : "Try a different name or clear the filters."}</p></div>
         ) : (
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[56rem] text-sm">
+            <caption className="sr-only">Patients</caption>
             <thead>
-              <tr className="border-b border-[var(--border)] bg-[var(--primary-tint)]/10 text-left text-xs font-semibold text-[var(--muted)]">
-                <th className="px-6 py-4">MRN</th>
-                <th className="px-6 py-4">Name</th>
-                <th className="px-6 py-4">Gender</th>
-                <th className="px-6 py-4">Age</th>
-                <th className="px-6 py-4">Blood</th>
-                <th className="px-6 py-4">Phone</th>
+              <tr className="border-b border-[var(--border)] bg-[var(--primary-tint)]/10 text-left text-xs text-[var(--muted)]">
+                {sortHead("name", "Patient")}
+                <th scope="col" className="px-4 py-4 font-semibold">Age · sex</th>
+                {sortHead("last_visit", "Last visit")}
+                {sortHead("next_appointment", "Next appointment")}
+                <th scope="col" className="px-4 py-4 font-semibold">Primary doctor</th>
+                <th scope="col" className="px-4 py-4 font-semibold">Status</th>
+                <th scope="col" className="px-4 py-4"><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
             <tbody>
-              {loading
+              {loading && !result
                 ? Array.from({ length: 6 }).map((_, i) => (
-                    <tr key={i} className="border-b border-[var(--border)]/60 last:border-0">
-                      {Array.from({ length: 6 }).map((_, j) => (
-                        <td key={j} className="px-6 py-4">
-                          <div className="h-4 animate-pulse rounded bg-[var(--primary-tint)]/20" style={{ width: `${55 + ((i * 7 + j * 13) % 35)}%` }} />
-                        </td>
-                      ))}
-                    </tr>
+                    <tr key={i} className="border-b border-[var(--border)]/60 last:border-0">{Array.from({ length: 7 }).map((_, j) => <td key={j} className="px-4 py-4"><div className="h-4 animate-pulse rounded bg-[var(--primary-tint)]/20" style={{ width: `${55 + ((i * 7 + j * 13) % 35)}%` }} /></td>)}</tr>
                   ))
                 : result!.data.map((p) => (
-                    <tr
-                      key={p.id}
-                      onClick={() => setEditing(p)}
-                      className="cursor-pointer border-b border-[var(--border)]/60 transition last:border-0 hover:bg-[var(--primary-tint)]/10"
-                    >
-                      <td className="px-6 py-4 font-medium text-[var(--primary)]">{p.mrn}</td>
-                      <td className="px-6 py-4 font-medium text-[var(--ink)]">{p.first_name} {p.last_name}</td>
-                      <td className="px-6 py-4 capitalize text-[var(--muted)]">{p.gender}</td>
-                      <td className="px-6 py-4 tabular-nums text-[var(--muted)]">{age(p.date_of_birth)}</td>
-                      <td className="px-6 py-4">
-                        {p.blood_type ? (
-                          <span className="rounded-full bg-[var(--primary-tint)]/25 px-2.5 py-0.5 text-xs font-semibold text-[var(--primary)]">{p.blood_type}</span>
-                        ) : (
-                          <span className="text-[var(--muted)]/50">—</span>
-                        )}
+                    <tr key={p.id} onClick={() => router.push(`/patients/${p.id}`)} className={`cursor-pointer border-b border-[var(--border)]/60 transition last:border-0 hover:bg-[var(--primary-tint)]/10 ${loading ? "opacity-60" : ""}`}>
+                      <th scope="row" className="px-4 py-3 text-left font-normal">
+                        <Link href={`/patients/${p.id}`} onClick={(e) => e.stopPropagation()} className="font-semibold text-[var(--ink)] hover:underline">{p.first_name} {p.last_name}</Link>
+                        <span className="block text-xs text-[var(--muted)]">{p.mrn}{p.blood_type ? ` · ${p.blood_type}` : ""}</span>
+                      </th>
+                      <td className="px-4 py-3 capitalize text-[var(--ink)]">{age(p.date_of_birth)} · {p.gender}</td>
+                      <td className="px-4 py-3 text-[var(--ink)]">{p.last_visit_at ? fmtShortDate(p.last_visit_at) : <span className="text-[var(--muted)]">—</span>}</td>
+                      <td className="px-4 py-3 text-[var(--ink)]">{p.next_appointment_at ? fmtShortDateTime(p.next_appointment_at) : <span className="text-[var(--muted)]">—</span>}</td>
+                      <td className="px-4 py-3 text-[var(--ink)]">{p.primary_doctor ?? <span className="text-[var(--muted)]">—</span>}</td>
+                      <td className="px-4 py-3">{p.is_admitted ? <span className="rounded-full bg-violet-100 px-2.5 py-0.5 text-xs font-semibold text-violet-900">Admitted</span> : <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-900">Outpatient</span>}</td>
+                      <td className="px-4 py-3 text-right">
+                        {canEdit && <button onClick={(e) => { e.stopPropagation(); setEditing(p); }} className="rounded-full border border-[var(--border)] px-3 py-1 text-xs font-semibold text-[var(--primary)] hover:bg-[var(--primary-tint)]/25" aria-label={`Edit ${p.first_name} ${p.last_name}`}>Edit</button>}
                       </td>
-                      <td className="px-6 py-4 tabular-nums text-[var(--muted)]">{p.phone}</td>
                     </tr>
                   ))}
             </tbody>
@@ -185,20 +199,13 @@ export default function PatientsPage() {
           <div className="flex items-center justify-between border-t border-[var(--border)] px-6 py-4">
             <span className="text-sm tabular-nums text-[var(--muted)]">Page {result.current_page} of {result.last_page}</span>
             <div className="flex gap-2">
-              <button disabled={result.current_page === 1} onClick={() => setPage((p) => p - 1)}
-                className="rounded-full border border-[var(--border)] px-4 py-1.5 text-sm font-medium text-[var(--muted)] transition hover:border-[var(--primary-tint)] hover:text-[var(--primary)] disabled:opacity-40 disabled:hover:border-[var(--border)] disabled:hover:text-[var(--muted)]">
-                ← Previous
-              </button>
-              <button disabled={result.current_page === result.last_page} onClick={() => setPage((p) => p + 1)}
-                className="rounded-full border border-[var(--border)] px-4 py-1.5 text-sm font-medium text-[var(--muted)] transition hover:border-[var(--primary-tint)] hover:text-[var(--primary)] disabled:opacity-40 disabled:hover:border-[var(--border)] disabled:hover:text-[var(--muted)]">
-                Next →
-              </button>
+              <button disabled={result.current_page === 1} onClick={() => setPage((p) => p - 1)} className="rounded-full border border-[var(--border)] px-4 py-1.5 text-sm font-medium text-[var(--ink)] transition hover:border-[var(--primary-tint)] disabled:opacity-40">← Previous</button>
+              <button disabled={result.current_page === result.last_page} onClick={() => setPage((p) => p + 1)} className="rounded-full border border-[var(--border)] px-4 py-1.5 text-sm font-medium text-[var(--ink)] transition hover:border-[var(--primary-tint)] disabled:opacity-40">Next →</button>
             </div>
           </div>
         )}
       </div>
 
-      {/* Modal */}
       {editing && (
         <PatientModal
           key={editing === "new" ? "new" : editing.id}
@@ -206,9 +213,10 @@ export default function PatientsPage() {
           canEdit={editing === "new" || canEdit}
           canManagePatientFiles={canManagePatientFiles}
           onClose={() => setEditing(null)}
-          onSaved={() => { setEditing(null); load(page, search); }}
+          onSaved={() => { setEditing(null); load(); }}
         />
       )}
+      <PatientLookupModal open={lookup} onClose={() => setLookup(false)} />
     </div>
   );
 }
@@ -253,11 +261,13 @@ function PatientModal({
     setForm((f) => ({ ...f, [field]: value }));
   }
 
-  async function submit() {
+  const [dupes, setDupes] = useState<{ id: string; mrn: string; first_name: string; last_name: string; date_of_birth: string }[] | null>(null);
+
+  async function submit(confirmDuplicate = false) {
     setErrors({});
     setSaving(true);
     try {
-      const payload = { ...form, blood_type: form.blood_type || null };
+      const payload = { ...form, blood_type: form.blood_type || null, ...(confirmDuplicate ? { confirm_duplicate: true } : {}) };
       if (initial) {
         await api.put(`/patients/${initial.id}`, payload);
       } else {
@@ -265,7 +275,11 @@ function PatientModal({
       }
       onSaved();
     } catch (e: unknown) {
-      const err = e as { response?: { data?: { errors?: Record<string, string[]>, message?: string } } };
+      const err = e as { response?: { status?: number; data?: { errors?: Record<string, string[]>, message?: string, code?: string, matches?: typeof dupes } } };
+      if (err.response?.status === 409 && err.response.data?.code === "possible_duplicate") {
+        setDupes(err.response.data.matches ?? []);   // let staff look before a second chart is created
+        return;
+      }
       const errs = err.response?.data?.errors ?? {};
       const flat: Record<string, string> = {};
       for (const k of Object.keys(errs)) flat[k] = errs[k][0];
@@ -353,6 +367,15 @@ function PatientModal({
           </div>
         </div>
 
+        {dupes && (
+          <div role="alert" className="mt-4 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+            <p className="font-semibold">A patient with this name and date of birth already exists.</p>
+            <ul className="mt-2 space-y-1">{dupes.map((d) => <li key={d.id}><Link href={`/patients/${d.id}`} className="font-medium underline">{d.first_name} {d.last_name}</Link> · {d.mrn} · born {fmtShortDate(d.date_of_birth.slice(0, 10) + "T00:00:00")}</li>)}</ul>
+            <p className="mt-2">Open the existing chart, or create a new one only if this is truly a different person.</p>
+            <button type="button" onClick={() => { setDupes(null); submit(true); }} className="mt-3 rounded-full border border-amber-400 bg-white px-4 py-1.5 text-sm font-semibold">Create anyway</button>
+          </div>
+        )}
+
         {errors._form && (
           <div className="mt-4 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-700">{errors._form}</div>
         )}
@@ -377,7 +400,7 @@ function PatientModal({
               className="rounded-full border border-[var(--border)] px-5 py-2 text-sm font-medium text-[var(--muted)] transition hover:bg-[var(--primary-tint)]/10 hover:text-[var(--ink)]">
               Cancel
             </button>
-            {canEdit && <button onClick={submit} disabled={saving}
+            {canEdit && <button onClick={() => submit()} disabled={saving}
               className="rounded-full bg-[var(--primary)] px-5 py-2 text-sm font-medium text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md hover:shadow-[var(--primary)]/20 disabled:opacity-60 disabled:hover:translate-y-0">
               {saving ? "Saving…" : initial ? "Save changes" : "Register patient"}
             </button>}

@@ -4,6 +4,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
+import { fmtShortDateTime } from "@/lib/format";
 
 type Contact = {
   id: number;
@@ -110,7 +111,7 @@ export default function AdminContactsPage() {
                 {result.data.map((contact) => (
                   <tr key={contact.id} className="border-b border-[var(--border)]/60 align-top last:border-0 hover:bg-[var(--primary-tint)]/10">
                     <td className="whitespace-nowrap px-6 py-4 text-xs tabular-nums text-[var(--muted)]">
-                      {new Date(contact.created_at).toLocaleString()}
+                      {fmtShortDateTime(contact.created_at)}
                     </td>
                     <td className="px-6 py-4">
                       <div className="font-medium text-[var(--ink)]">{contact.name}</div>

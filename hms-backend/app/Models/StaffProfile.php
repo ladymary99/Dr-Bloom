@@ -13,6 +13,7 @@ class StaffProfile extends Model
         'specialization', 'phone', 'hired_at', 'is_active',
         'working_days', 'working_hours', 'slot_minutes', 'bio', 'languages',
         'years_experience', 'consultation_fee',
+        'weekly_schedule', 'buffer_minutes', 'max_per_day', 'accepts_online', 'accepts_in_person', 'license_number',
     ];
 
     protected $casts = [
@@ -23,6 +24,11 @@ class StaffProfile extends Model
         'slot_minutes' => 'integer',
         'years_experience' => 'integer',
         'consultation_fee' => 'decimal:2',
+        'weekly_schedule' => 'array',
+        'buffer_minutes' => 'integer',
+        'max_per_day' => 'integer',
+        'accepts_online' => 'boolean',
+        'accepts_in_person' => 'boolean',
     ];
 
     public function timeOff(): HasMany

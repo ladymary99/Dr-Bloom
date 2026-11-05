@@ -21,6 +21,8 @@ export const fmtShortDate = (s?: string | null) =>
   s ? new Date(s).toLocaleDateString(currentLocale(), { day: "numeric", month: "short", year: "numeric" }) : "—";
 export const fmtTime = (s?: string | null) =>
   s ? new Date(s).toLocaleTimeString(currentLocale(), { hour: "2-digit", minute: "2-digit" }) : "—";
+/** One house style for tables and lists: "26 Oct 2026, 14:30" (day-first, 24 h; never "04/10/2026"). */
+export const fmtShortDateTime = (s?: string | null) => (s ? `${fmtShortDate(s)}, ${fmtTime(s)}` : "—");
 export const fmtDateTime = (s?: string | null) => (s ? `${fmtDate(s)} · ${fmtTime(s)}` : "—");
 
 /** "2026-10-26" + "09:30" → Date in local time (no UTC shift). */
@@ -62,4 +64,12 @@ export async function downloadFile(
 export function bytes(n?: number | null) {
   if (!n) return "";
   return n < 1024 * 1024 ? `${Math.max(1, Math.round(n / 1024))} KB` : `${(n / 1048576).toFixed(1)} MB`;
+}
+
+/** "Dr. Laila Hosseini" -> "Dr. Hosseini"; "Maya Schmitt" -> "Maya". (Never just "Dr.") */
+export function greetingName(full?: string | null) {
+  const parts = (full ?? "").trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "";
+  if (/^dr\.?$/i.test(parts[0])) return parts.length > 1 ? `Dr. ${parts[parts.length - 1]}` : "Doctor";
+  return parts[0];
 }

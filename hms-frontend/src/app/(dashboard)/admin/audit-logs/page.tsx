@@ -4,6 +4,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
+import { fmtShortDateTime } from "@/lib/format";
 
 type Log = {
   id: number;
@@ -94,7 +95,7 @@ export default function AuditLogsPage() {
               {result?.data.map((l) => (
                 <tr key={l.id} className="border-b border-[var(--border)]/60 transition last:border-0 hover:bg-[var(--primary-tint)]/10">
                   <td className="whitespace-nowrap px-6 py-4 tabular-nums text-[var(--muted)]">
-                    {new Date(l.created_at).toLocaleString()}
+                    {fmtShortDateTime(l.created_at)}
                   </td>
                   <td className="px-6 py-4 font-medium text-[var(--ink)]">{l.user?.name ?? "—"}</td>
                   <td className="px-6 py-4">

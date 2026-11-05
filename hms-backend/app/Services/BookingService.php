@@ -84,13 +84,22 @@ class BookingService
             $doctor->working_days ?? [1, 2, 3, 4, 5],
             $doctor->working_hours ?: self::DEFAULT_HOURS,
             $slot, $busy, $off, $now, 30, // 30-minute lead time: no booking a slot that starts in 5 minutes
+            $doctor->weekly_schedule ?: null,
+            (int) ($doctor->buffer_minutes ?? 0),
+            $doctor->max_per_day ?: null,
         );
     }
 
-    public function assertBookable(StaffProfile $doctor, CarbonImmutable $start, ?string $ignoreAppointmentId = null): void
+    public function assertBookable(StaffProfile $doctor, CarbonImmutable $start, ?string $ignoreAppointmentId = null, string $visitType = 'in_person'): void
     {
         if (! $doctor->is_active || $doctor->position !== 'doctor') {
             throw new SlotUnavailableException('This doctor is not accepting appointments.');
+        }
+        if ($visitType === 'online' && ! $doctor->accepts_online) {
+            throw new SlotUnavailableException('This doctor does not offer video visits.');
+        }
+        if ($visitType !== 'online' && ! $doctor->accepts_in_person) {
+            throw new SlotUnavailableException('This doctor only offers video visits.');
         }
         $day = $start->format('Y-m-d');
         $times = $this->availability($doctor, $day, $day, $ignoreAppointmentId)[$day] ?? [];
@@ -100,15 +109,19 @@ class BookingService
     }
 
     /** Create an appointment + its consultation invoice atomically. */
-    public function book(Patient $patient, StaffProfile $doctor, CarbonImmutable $start, string $reason, string $visitType = 'in_person', ?User $by = null): Appointment
+    public function book(Patient $patient, StaffProfile $doctor, CarbonImmutable $start, string $reason, string $visitType = 'in_person', ?User $by = null, bool $createInvoice = true, bool $enforceSchedule = true): Appointment
     {
-        $this->assertBookable($doctor, $start);
+        if ($enforceSchedule) {
+            $this->assertBookable($doctor, $start, null, $visitType);
+        }
 
         try {
-            return DB::transaction(function () use ($patient, $doctor, $start, $reason, $visitType, $by) {
+            return DB::transaction(function () use ($patient, $doctor, $start, $reason, $visitType, $by, $createInvoice) {
                 $appointment = Appointment::create([
                     'patient_id' => $patient->id,
                     'doctor_id' => $doctor->id,
+                    // an appointment always belongs to its doctor's department (keeps department stats consistent)
+                    'department_id' => $doctor->department_id,
                     'appointment_at' => $start->format('Y-m-d H:i:s'),
                     'duration_minutes' => (int) ($doctor->slot_minutes ?: 30),
                     'status' => 'scheduled',
@@ -122,7 +135,7 @@ class BookingService
                 }
 
                 $fee = $this->fee($doctor);
-                if ($fee > 0) {
+                if ($createInvoice && $fee > 0) {
                     $invoice = Invoice::create([
                         'patient_id' => $patient->id,
                         'department_id' => $doctor->department_id,
@@ -147,7 +160,7 @@ class BookingService
 
     public function reschedule(Appointment $appointment, CarbonImmutable $newStart): Appointment
     {
-        $this->assertBookable($appointment->doctor, $newStart, $appointment->id);
+        $this->assertBookable($appointment->doctor, $newStart, $appointment->id, $appointment->visit_type);
 
         try {
             $appointment->update([
@@ -181,7 +194,7 @@ class BookingService
 
     public function patientMayModify(Appointment $appointment): bool
     {
-        return in_array($appointment->status, ['scheduled', 'confirmed'], true)
+        return in_array($appointment->status, Appointment::OPEN, true)
             && CancellationPolicy::allows(
                 new DateTimeImmutable($appointment->appointment_at->format('Y-m-d H:i:s')),
                 new DateTimeImmutable('now'),

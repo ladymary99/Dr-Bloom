@@ -7,6 +7,7 @@ use App\Models\AuditLog;
 use App\Models\Patient;
 use App\Models\PatientDocument;
 use Illuminate\Http\Request;
+use App\Services\PatientAccess;
 use App\Support\Security\UploadInspector;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -246,12 +247,6 @@ class PatientDocumentController extends Controller
         }
 
         abort_if(! $user->hasRole('doctor'), 403);
-        $doctorId = $user->staffProfile?->id;
-        abort_if(! $doctorId, 403, 'No staff profile linked to this doctor account.');
-
-        $hasAppointment = $patient->appointments()->where('doctor_id', $doctorId)->exists();
-        $hasVisit = $patient->visits()->where('doctor_id', $doctorId)->exists();
-        $hasAdmission = $patient->admissions()->where('doctor_id', $doctorId)->exists();
-        abort_unless($hasAppointment || $hasVisit || $hasAdmission, 404);
+        PatientAccess::authorize($user, $patient);
     }
 }

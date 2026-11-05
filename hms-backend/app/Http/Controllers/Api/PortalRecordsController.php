@@ -25,7 +25,8 @@ class PortalRecordsController extends Controller
         Audit::log($request, 'viewed_records', $patient);
 
         return $patient->visits()
-            ->with('doctor.user:id,name', 'prescription.items')
+            ->where('status', 'signed')                       // drafts are never visible to patients
+            ->with('doctor.user:id,name', 'prescription.items', 'letters')
             ->orderByDesc('visited_at')
             ->get()
             ->map(fn ($v) => $v->forPatient());
@@ -99,6 +100,15 @@ class PortalRecordsController extends Controller
         return Storage::disk('local')->download($test->result_file_path, $test->result_file_name ?: 'result.pdf', [
             'X-Content-Type-Options' => 'nosniff',
         ]);
+    }
+
+    /** Printable sick note / referral addressed to the patient. */
+    public function letter(Request $request, string $letter)
+    {
+        $l = \App\Models\ClinicalLetter::where('patient_id', $this->me($request)->id)->findOrFail($letter);
+        Audit::log($request, 'viewed_letter', $l);
+
+        return response()->json(app(\App\Http\Controllers\Api\VisitController::class)->letterPayload($l));
     }
 
     public function vaccinations(Request $request)

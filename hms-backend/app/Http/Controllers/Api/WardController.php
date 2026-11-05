@@ -36,12 +36,15 @@ class WardController extends Controller
                     'id'         => $b->id,
                     'bed_number' => $b->bed_number,
                     'status'     => $b->status,
+                    'cleaning_status' => $b->cleaning_status,
+                    'is_isolation'    => (bool) $b->is_isolation,
                     'patient'    => $b->currentAdmission?->patient,
                     'admission'  => $b->currentAdmission ? [
                         'id'          => $b->currentAdmission->id,
                         'doctor'      => $b->currentAdmission->doctor?->user?->name,
                         'admitted_at' => $b->currentAdmission->admitted_at,
                         'diagnosis'   => $b->currentAdmission->diagnosis,
+                        'expected_discharge_at' => $b->currentAdmission->expected_discharge_at,
                     ] : null,
                 ])->values(),
             ]);

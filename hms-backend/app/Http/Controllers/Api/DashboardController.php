@@ -67,11 +67,17 @@ class DashboardController extends Controller
         };
 
         $trend = function (int $current, int $previous): array {
-            if ($previous === 0) {
-                return ['current' => $current, 'pct' => $current > 0 ? 100 : 0, 'up' => true];
-            }
-            $pct = round((($current - $previous) / $previous) * 100, 1);
-            return ['current' => $current, 'pct' => abs($pct), 'up' => $pct >= 0];
+            $delta = $current - $previous;
+
+            return [
+                'current' => $current,
+                'previous' => $previous,
+                'delta' => $delta,
+                // a percentage on a tiny base is misleading ("1 vs 0 = 100%"): only give one when last week had 5+
+                'pct' => $previous >= 5 ? round(abs($delta) / $previous * 100, 1) : null,
+                'direction' => $delta === 0 ? 'flat' : ($delta > 0 ? 'up' : 'down'),
+                'up' => $delta >= 0,
+            ];
         };
 
         $patientMonthExpression = sprintf($monthExpression, 'created_at');
@@ -107,7 +113,8 @@ class DashboardController extends Controller
             ];
         }
 
-        $departmentPerformance = DB::table('invoices')
+        // hospital revenue is for administrators: a doctor's dashboard never carries it
+        $departmentPerformance = $doctorId ? collect() : DB::table('invoices')
             ->join('departments', 'invoices.department_id', '=', 'departments.id')
             ->where('invoices.status', 'paid')
             ->whereBetween('invoices.paid_at', [$previousMonthStart, now()])
@@ -183,10 +190,8 @@ class DashboardController extends Controller
                 ->limit(6)
                 ->get(['id', 'appointment_at', 'status', 'reason', 'patient_id', 'doctor_id']),
 
-            'recent_activity' => AuditLog::with('user:id,name')
-                ->when($doctorId, fn ($query) => $query->where('user_id', $userId))
-                ->latest()->limit(8)
-                ->get(['id', 'action', 'auditable_type', 'created_at', 'user_id']),
+            // readable, linked and de-duplicated ("You viewed Ava King's record ×8")
+            'recent_activity' => \App\Support\ActivityFeed::build($doctorId ? $userId : null, 8, $doctorId ? $userId : null),
         ];
     }
 }

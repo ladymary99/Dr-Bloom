@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { api } from "@/lib/api";
+import { fmtShortDate } from "@/lib/format";
 import { useAuthStore } from "@/store/auth";
 
 type PatientDocument = {
@@ -142,7 +143,7 @@ export default function PatientFiles({
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-slate-900">{document.title}</p>
                     <p className="truncate text-xs text-slate-500">
-                      {document.original_name} · {new Date(document.created_at).toLocaleDateString()}
+                      {document.original_name} · {fmtShortDate(document.created_at)}
                       {document.uploader?.name ? ` · ${document.uploader.name}` : ""}
                     </p>
                   </div>

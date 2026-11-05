@@ -7,9 +7,14 @@ export type User = {
   id: number;
   name: string;
   email: string;
+  two_factor_enabled?: boolean;
   staff_profile?: {
+    id?: number;
     position?: string;
     specialization?: string;
+    phone?: string | null;
+    license_number?: string | null;
+    languages?: string | null;
     department?: { name: string };
   } | null;
 };

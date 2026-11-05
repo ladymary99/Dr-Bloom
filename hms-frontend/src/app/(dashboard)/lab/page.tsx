@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { apiError, downloadFile } from "@/lib/format";
+import { fmtShortDateTime } from "@/lib/format";
 
 type LabTest = {
   id: number; test_name: string; status: string; result: string | null; notes: string | null;
@@ -143,7 +144,7 @@ export default function LabPage() {
                     <div className="text-xs font-medium text-[var(--primary)]">{t.patient.mrn}</div>
                   </td>
                   <td className="px-6 py-3 text-[var(--muted)]">{t.doctor?.user?.name ?? "—"}</td>
-                  <td className="px-6 py-3 tabular-nums text-[var(--muted)]">{new Date(t.created_at).toLocaleString()}</td>
+                  <td className="px-6 py-3 tabular-nums text-[var(--muted)]">{fmtShortDateTime(t.created_at)}</td>
                   <td className="px-6 py-3">
                     <span className={`rounded-full px-3 py-1 text-xs font-semibold capitalize ${pill[t.status]}`}>{t.status.replace("_", " ")}</span>
                     {t.status === "completed" && <span className={`ml-2 text-[11px] font-semibold ${t.released_at ? "text-emerald-800" : "text-amber-800"}`}>{t.released_at ? "Visible to patient" : "Hidden from patient"}</span>}
@@ -190,7 +191,7 @@ export default function LabPage() {
           <div className="w-full max-w-md rounded-3xl border border-[var(--border)] bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <h2 className="font-heading text-lg font-semibold text-[var(--ink)]">{viewResult.test_name} — Result</h2>
             <p className="mt-1 text-xs text-[var(--muted)]">
-              {viewResult.patient.first_name} {viewResult.patient.last_name} · completed {viewResult.completed_at ? new Date(viewResult.completed_at).toLocaleString() : "—"}
+              {viewResult.patient.first_name} {viewResult.patient.last_name} · completed {viewResult.completed_at ? fmtShortDateTime(viewResult.completed_at) : "—"}
             </p>
             <div className="mt-4 whitespace-pre-wrap rounded-2xl bg-emerald-50 p-4 text-sm text-[var(--ink)]">{viewResult.result ?? "—"}</div>
             <div className="mt-4 rounded-2xl border border-[var(--border)] p-4 text-sm">

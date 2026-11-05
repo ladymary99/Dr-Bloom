@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
+import { fmtShortDateTime } from "@/lib/format";
 
 type PrescriptionItem = {
   id: number;
@@ -234,7 +235,7 @@ export default function PharmacyPage() {
                     {rx.notes && <p className="mt-3 text-sm text-[var(--muted)]"><b className="font-medium text-[var(--ink)]">Note:</b> {rx.notes}</p>}
                     <div className="mt-3 flex items-center justify-between text-xs text-[var(--muted)]">
                       <span>Doctor: {rx.doctor?.user?.name ?? "—"}</span>
-                      <span className="tabular-nums">{new Date(rx.created_at).toLocaleString()}</span>
+                      <span className="tabular-nums">{fmtShortDateTime(rx.created_at)}</span>
                     </div>
                   </div>
                 ))}

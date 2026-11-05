@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
+import { fmtShortDateTime } from "@/lib/format";
 
 type DepartmentData = {
   department: { id: number; name: string; code: string; description: string | null } | null;
@@ -11,6 +12,10 @@ type DepartmentData = {
     position: string;
     specialization: string | null;
     user: { name: string; email: string };
+    phone?: string | null;
+    today?: { status: "working" | "off" | "leave"; hours: string | null };
+    patients_today?: number;
+    next_available?: string | null;
   }[];
   stats: { staff: number; appointments: number };
 };
@@ -47,7 +52,7 @@ export default function MyDepartmentPage() {
       <header>
         <p className="text-sm font-medium text-[var(--primary)]">Doctor workspace</p>
         <h1 className="mt-1 font-heading text-3xl font-bold tracking-tight text-[var(--ink)]">My Department</h1>
-        <p className="mt-2 text-sm text-[var(--muted)]">Department information and active team members.</p>
+        <p className="mt-2 text-sm text-[var(--muted)]">Your department&apos;s team, who is working today, and when each colleague is next free.</p>
       </header>
 
       <section className={cardClass}>
@@ -84,6 +89,14 @@ export default function MyDepartmentPage() {
                   <p className="font-medium text-[var(--ink)]">{member.user.name}</p>
                   <p className="mt-1 text-xs text-[var(--muted)]">{member.user.email}</p>
                 </div>
+                {member.today && (
+                  <div className="text-sm">
+                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${member.today.status === "working" ? "bg-emerald-100 text-emerald-900" : member.today.status === "leave" ? "bg-amber-100 text-amber-900" : "bg-slate-200 text-slate-800"}`}>
+                      {member.today.status === "working" ? `In today ${member.today.hours}` : member.today.status === "leave" ? "On leave today" : "Off today"}
+                    </span>
+                    <p className="mt-1 text-xs text-[var(--muted)]">{member.patients_today ?? 0} booked today{member.next_available ? ` · next free ${fmtShortDateTime(member.next_available.replace(" ", "T") + ":00")}` : ""}</p>
+                  </div>
+                )}
                 <div className="text-right">
                   <p className="text-sm capitalize text-[var(--ink)]">{member.position.replaceAll("_", " ")}</p>
                   <p className="mt-1 text-xs text-[var(--muted)]">

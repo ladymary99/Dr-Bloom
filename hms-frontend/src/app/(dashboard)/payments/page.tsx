@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useState } from "react";
 import InvoiceManager from "@/components/InvoiceManager";
 import { api } from "@/lib/api";
+import { fmtShortDate } from "@/lib/format";
 
 type Dept = { id: number; name: string };
 type Doctor = { id: number; specialization: string | null; user: { name: string } };
@@ -245,7 +246,7 @@ export default function PaymentsPage() {
                 <tr key={inv.id} className="border-b border-[var(--border)]/60 transition last:border-0 hover:bg-[var(--primary-tint)]/10">
                   <td className="px-6 py-4">
                     <div className="font-medium text-[var(--primary)]">{inv.invoice_number}</div>
-                    <div className="text-xs tabular-nums text-[var(--muted)]">{new Date(inv.created_at).toLocaleDateString()}</div>
+                    <div className="text-xs tabular-nums text-[var(--muted)]">{fmtShortDate(inv.created_at)}</div>
                   </td>
                   <td className="px-6 py-4">
                     <div className="font-medium text-[var(--ink)]">{inv.patient ? `${inv.patient.first_name} ${inv.patient.last_name}` : "—"}</div>

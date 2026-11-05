@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Support\NameCase;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -37,6 +39,17 @@ class Patient extends Model
 
     // Auto-generate MRN if not provided
 // MRN is always generated server-side from a database sequence: unique, never reused.
+    // Names typed ALL-lower/UPPER case are tidied on save ("ava king" → "Ava King"); mixed case is left alone.
+    protected function firstName(): Attribute
+    {
+        return Attribute::make(set: fn ($v) => NameCase::format($v));
+    }
+
+    protected function lastName(): Attribute
+    {
+        return Attribute::make(set: fn ($v) => NameCase::format($v));
+    }
+
     protected static function booted(): void
     {
         static::creating(function (Patient $patient) {

@@ -16,6 +16,7 @@ class Appointment extends Model
         'duration_minutes', 'status', 'reason', 'notes', 'visit_type', 'meeting_url',
         'cancelled_at', 'cancelled_by', 'cancellation_reason', 'rescheduled_from', 'booked_by',
         'reminder_24h_sent_at', 'reminder_1h_sent_at',
+        'checked_in_at', 'consultation_started_at', 'completed_at',
     ];
 
     protected $casts = [
@@ -24,11 +25,27 @@ class Appointment extends Model
         'cancelled_at' => 'datetime',
         'rescheduled_from' => 'datetime:Y-m-d\TH:i:s',
         'reminder_24h_sent_at' => 'datetime',
+        'checked_in_at' => 'datetime',
+        'consultation_started_at' => 'datetime',
+        'completed_at' => 'datetime',
         'reminder_1h_sent_at' => 'datetime',
     ];
 
     /** Statuses that occupy the doctor's calendar. */
-    public const ACTIVE = ['scheduled', 'confirmed', 'checked_in'];
+    public const ACTIVE = ['scheduled', 'confirmed', 'checked_in', 'waiting', 'in_consultation'];
+
+    /** Not yet seen: can still be moved or cancelled. */
+    public const OPEN = ['scheduled', 'confirmed'];
+
+    protected $appends = ['is_overdue'];
+
+    /** Still open an hour after it should have ended: someone must mark it completed / no-show / cancelled. */
+    public function getIsOverdueAttribute(): bool
+    {
+        return in_array($this->status, self::ACTIVE, true)
+            && $this->appointment_at !== null
+            && $this->appointment_at->copy()->addMinutes((int) $this->duration_minutes + 60)->isPast();
+    }
 
     public function patient(): BelongsTo
     {

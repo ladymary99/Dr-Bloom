@@ -5,14 +5,18 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/store/auth";
+import { useNow } from "@/hooks/useNow";
+import { apiError, fmtShortDate, fmtShortDateTime } from "@/lib/format";
+import { DischargeModal, TransferModal, CleaningModal } from "@/components/WardDialogs";
+import { Modal, btnGhost, btnPrimary } from "@/components/ui";
 
 type PatientRow = { id: string; mrn: string; first_name: string; last_name: string };
 type Doctor = { id: number; user: { name: string }; specialization: string | null };
 
 type BedInfo = {
-  id: number; bed_number: string; status: "available" | "occupied" | "maintenance";
+  id: number; bed_number: string; status: "available" | "occupied" | "maintenance"; cleaning_status?: "clean" | "needs_cleaning"; is_isolation?: boolean;
   patient: { id: string; mrn: string; first_name: string; last_name: string } | null;
-  admission: { id: number; doctor: string | null; admitted_at: string; diagnosis: string | null } | null;
+  admission: { id: number; doctor: string | null; admitted_at: string; diagnosis: string | null; expected_discharge_at?: string | null } | null;
 };
 
 type WardInfo = {
@@ -22,7 +26,7 @@ type WardInfo = {
 };
 
 type Inpatient = {
-  id: number; admitted_at: string; diagnosis: string | null;
+  id: number; admitted_at: string; diagnosis: string | null; expected_discharge_at?: string | null;
   patient: { mrn: string; first_name: string; last_name: string } | null;
   bed: { bed_number: string; ward: { name: string } };
   doctor: { user: { name: string } } | null;
@@ -50,6 +54,7 @@ const icons = {
 };
 
 export default function BedsPage() {
+  const now = useNow();
   const hasPermission = useAuthStore((s) => s.hasPermission);
   const roles = useAuthStore((s) => s.roles);
   const isDoctor = roles.includes("doctor") && !roles.includes("admin");
@@ -63,6 +68,9 @@ export default function BedsPage() {
     | { kind: "admit"; bed: BedInfo }
     | { kind: "occupied"; bed: BedInfo }
     | { kind: "maintenance"; bed: BedInfo }
+    | { kind: "discharge"; admissionId: number; patient: string }
+    | { kind: "transfer"; admissionId: number; patient: string; bedId: number }
+    | { kind: "cleaning"; bed: BedInfo }
     | { kind: "ward" }
     | { kind: "addBed"; ward: WardInfo }
     | null
@@ -82,6 +90,7 @@ export default function BedsPage() {
   const beds = wards?.flatMap((w) => w.beds) ?? [];
   const occupied = beds.filter((b) => b.status === "occupied").length;
   const maintenance = beds.filter((b) => b.status === "maintenance").length;
+  const needsCleaning = beds.filter((b) => b.status === "available" && b.cleaning_status === "needs_cleaning").length;
   const available = beds.filter((b) => b.status === "available").length;
   const pct = beds.length ? Math.round((occupied / beds.length) * 100) : 0;
 
@@ -154,7 +163,8 @@ export default function BedsPage() {
               { label: "Available", value: available, dot: "bg-emerald-500" },
               { label: "Occupied", value: occupied, dot: "bg-[var(--primary)]" },
               { label: "Maintenance", value: maintenance, dot: "bg-amber-500" },
-            ].map((r) => (
+              { label: "Needs cleaning", value: needsCleaning, dot: "bg-slate-400" },
+            ].filter((r) => r.value > 0 || r.label === "Available" || r.label === "Occupied").map((r) => (
               <div key={r.label} className="flex items-center gap-2">
                 <span className={`h-2.5 w-2.5 rounded-full ${r.dot}`} />
                 <span className="text-[var(--muted)]">{r.label}</span>
@@ -244,14 +254,17 @@ export default function BedsPage() {
                       onClick={() => {
                         if (b.status === "occupied") setModal({ kind: "occupied", bed: b });
                         else if (b.status === "maintenance" && canManageBeds) setModal({ kind: "maintenance", bed: b });
+                        else if (b.status === "available" && b.cleaning_status === "needs_cleaning" && canManageAdmissions) setModal({ kind: "cleaning", bed: b });
                         else if (b.status === "available" && canManageAdmissions) setModal({ kind: "admit", bed: b });
                       }}
-                      className={`rounded-xl border p-3 text-left transition ${bedStyle[b.status]} disabled:cursor-default disabled:hover:translate-y-0 disabled:hover:shadow-none`}
+                      className={`rounded-xl border p-3 text-left transition ${b.status === "available" && b.cleaning_status === "needs_cleaning" ? "border-slate-300 bg-slate-100 text-slate-700 hover:-translate-y-0.5 hover:shadow-sm" : bedStyle[b.status]} disabled:cursor-default disabled:hover:translate-y-0 disabled:hover:shadow-none`}
                     >
                       <div className="text-lg font-semibold tabular-nums">#{b.bed_number}</div>
                       <div className="mt-0.5 truncate text-[10px] font-medium uppercase tracking-wide">
-                        {b.status === "occupied" ? b.patient?.first_name ?? "Occupied" : b.status}
+                        {b.status === "occupied" ? b.patient?.first_name ?? "Occupied" : b.status === "available" && b.cleaning_status === "needs_cleaning" ? "needs cleaning" : b.status}
                       </div>
+                      {b.is_isolation && <div className="mt-1 inline-block rounded bg-red-100 px-1 text-[9px] font-bold text-red-800">ISOLATION</div>}
+                      {b.status === "occupied" && b.admission && <div className="mt-0.5 text-[10px] opacity-80">day {Math.floor((now - new Date(b.admission.admitted_at).getTime()) / 86400000) + 1}</div>}
                     </button>
                   ))}
                   {w.beds.length === 0 && <div className="col-span-full py-4 text-center text-sm text-[var(--muted)]">{canManageBeds ? 'No beds yet — click "+ Bed".' : "No beds yet."}</div>}
@@ -282,6 +295,8 @@ export default function BedsPage() {
                 <th className="px-6 py-3">Bed</th>
                 <th className="px-6 py-3">Doctor</th>
                 <th className="px-6 py-3">Admitted</th>
+                <th className="px-6 py-3">Stay</th>
+                <th className="px-6 py-3">Expected discharge</th>
                 <th className="px-6 py-3">Diagnosis</th>
                 <th className="px-6 py-3" />
               </tr>
@@ -295,12 +310,14 @@ export default function BedsPage() {
                   </td>
                   <td className="px-6 py-3 text-[var(--muted)]">{a.bed.ward.name} · #{a.bed.bed_number}</td>
                   <td className="px-6 py-3 text-[var(--muted)]">{a.doctor?.user?.name ?? "—"}</td>
-                  <td className="px-6 py-3 tabular-nums text-[var(--muted)]">{new Date(a.admitted_at).toLocaleString()}</td>
+                  <td className="px-6 py-3 tabular-nums text-[var(--muted)]">{fmtShortDateTime(a.admitted_at)}</td>
+                  <td className="px-6 py-3 tabular-nums text-[var(--ink)]">Day {Math.floor((now - new Date(a.admitted_at).getTime()) / 86400000) + 1}</td>
+                  <td className="px-6 py-3 tabular-nums text-[var(--muted)]">{a.expected_discharge_at ? fmtShortDate(a.expected_discharge_at) : "—"}</td>
                   <td className="px-6 py-3 text-[var(--muted)]">{a.diagnosis ?? "—"}</td>
                   <td className="px-6 py-3 text-right">
                     {canDischargeAdmissions && (
                       <button
-                        onClick={async () => { if (confirm("Discharge this patient? Bed becomes available.")) { await api.put(`/admissions/${a.id}/discharge`); load(); } }}
+                        onClick={() => setModal({ kind: "discharge", admissionId: a.id, patient: a.patient ? `${a.patient.first_name} ${a.patient.last_name}` : "patient" })}
                         className="rounded-full bg-emerald-600 px-4 py-1.5 text-xs font-medium text-white shadow-sm transition hover:bg-emerald-700">
                         Discharge
                       </button>
@@ -318,28 +335,13 @@ export default function BedsPage() {
         <AdmitModal bed={modal.bed} onClose={() => setModal(null)} onDone={() => { setModal(null); load(); }} />
       )}
       {modal?.kind === "occupied" && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--ink)]/40 p-4 backdrop-blur-sm" onClick={() => setModal(null)}>
-          <div className="w-full max-w-sm rounded-3xl border border-[var(--border)] bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <h2 className="font-heading text-lg font-semibold text-[var(--ink)]">Bed #{modal.bed.bed_number} — Occupied</h2>
-            <div className="mt-4 space-y-2 rounded-2xl bg-[var(--primary-tint)]/10 p-4 text-sm text-[var(--muted)]">
-              <div><b className="text-[var(--ink)]">{modal.bed.patient?.first_name} {modal.bed.patient?.last_name}</b> <span className="font-medium text-[var(--primary)]">{modal.bed.patient?.mrn}</span></div>
-              <div>Doctor: {modal.bed.admission?.doctor ?? "—"}</div>
-              <div>Admitted: {modal.bed.admission ? new Date(modal.bed.admission.admitted_at).toLocaleString() : "—"}</div>
-              {modal.bed.admission?.diagnosis && <div>Diagnosis: {modal.bed.admission.diagnosis}</div>}
-            </div>
-            <div className="mt-6 flex justify-end gap-2">
-              <button onClick={() => setModal(null)} className="rounded-full border border-[var(--border)] px-5 py-2 text-sm font-medium text-[var(--muted)] transition hover:bg-[var(--primary-tint)]/10 hover:text-[var(--ink)]">Close</button>
-              {canDischargeAdmissions && (
-                <button
-                  onClick={async () => { if (confirm("Discharge this patient?")) { await api.put(`/admissions/${modal.bed.admission!.id}/discharge`); setModal(null); load(); } }}
-                  className="rounded-full bg-emerald-600 px-5 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-700">
-                  Discharge
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
+        <OccupiedModal bed={modal.bed} canManage={canDischargeAdmissions} onClose={() => setModal(null)} onSaved={load}
+          onDischarge={() => setModal({ kind: "discharge", admissionId: modal.bed.admission!.id, patient: `${modal.bed.patient?.first_name} ${modal.bed.patient?.last_name}` })}
+          onTransfer={() => setModal({ kind: "transfer", admissionId: modal.bed.admission!.id, patient: `${modal.bed.patient?.first_name} ${modal.bed.patient?.last_name}`, bedId: modal.bed.id })} />
       )}
+      {modal?.kind === "discharge" && <DischargeModal admissionId={modal.admissionId} patient={modal.patient} onClose={() => setModal(null)} onDone={() => { setModal(null); load(); }} />}
+      {modal?.kind === "transfer" && <TransferModal admissionId={modal.admissionId} patient={modal.patient} currentBedId={modal.bedId} wards={wards ?? []} onClose={() => setModal(null)} onDone={() => { setModal(null); load(); }} />}
+      {modal?.kind === "cleaning" && <CleaningModal bedId={modal.bed.id} bedNumber={modal.bed.bed_number} onClose={() => setModal(null)} onDone={() => { setModal(null); load(); }} />}
       {modal?.kind === "maintenance" && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--ink)]/40 p-4 backdrop-blur-sm" onClick={() => setModal(null)}>
           <div className="w-full max-w-sm rounded-3xl border border-[var(--border)] bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
@@ -426,6 +428,40 @@ function StatusDonut({ available, occupied, maintenance }: { available: number; 
         return el;
       })}
     </svg>
+  );
+}
+
+/* ---------- Occupied bed: stay, expected discharge, transfer, discharge ---------- */
+
+function OccupiedModal({ bed, canManage, onClose, onSaved, onDischarge, onTransfer }: { bed: BedInfo; canManage: boolean; onClose: () => void; onSaved: () => void; onDischarge: () => void; onTransfer: () => void }) {
+  const now = useNow();
+  const adm = bed.admission;
+  const [expected, setExpected] = useState(adm?.expected_discharge_at?.slice(0, 10) ?? "");
+  const [msg, setMsg] = useState("");
+  const day = adm ? Math.floor((now - new Date(adm.admitted_at).getTime()) / 86400000) + 1 : null;
+
+  async function saveExpected() {
+    if (!adm) return;
+    try { await api.put(`/admissions/${adm.id}`, { expected_discharge_at: expected || null }); setMsg("Saved."); onSaved(); } catch (e) { setMsg(apiError(e)); }
+  }
+  return (
+    <Modal open onClose={onClose} title={`Bed #${bed.bed_number} · Occupied`}
+      footer={<><button onClick={onClose} className={btnGhost}>Close</button>{canManage && adm && <><button onClick={onTransfer} className={btnGhost}>Transfer…</button><button onClick={onDischarge} className={btnPrimary}>Discharge…</button></>}</>}>
+      <div className="space-y-4 text-sm">
+        <div className="space-y-1 rounded-2xl bg-[var(--primary-tint)]/10 p-4">
+          <div><b className="text-[var(--ink)]">{bed.patient?.first_name} {bed.patient?.last_name}</b> <span className="font-medium text-[var(--primary)]">{bed.patient?.mrn}</span></div>
+          <div>Doctor: {adm?.doctor ?? "—"}</div>
+          <div>Admitted: {adm ? fmtShortDateTime(adm.admitted_at) : "—"}{day ? ` · day ${day}` : ""}</div>
+          {adm?.diagnosis && <div>Diagnosis: {adm.diagnosis}</div>}
+        </div>
+        {canManage && adm && (
+          <div className="flex flex-wrap items-end gap-2">
+            <label className="text-xs font-semibold">Expected discharge<input type="date" min={new Date().toLocaleDateString("en-CA")} value={expected} onChange={(e) => setExpected(e.target.value)} className="mt-1 block rounded-xl border border-[var(--border)] px-3 py-2 text-sm" /></label>
+            <button onClick={saveExpected} className={btnGhost}>Save</button>{msg && <span className="text-xs text-[var(--muted)]">{msg}</span>}
+          </div>
+        )}
+      </div>
+    </Modal>
   );
 }
 

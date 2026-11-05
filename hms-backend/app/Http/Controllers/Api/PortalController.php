@@ -107,8 +107,9 @@ class PortalController extends Controller
         $doctor->load('user:id,name,avatar_path', 'department:id,name');
 
         return response()->json($this->doctorCard($doctor) + [
-            'working_days' => $doctor->working_days ?? [1, 2, 3, 4, 5],
+            'working_days' => $doctor->weekly_schedule ? array_map('intval', array_keys(array_filter($doctor->weekly_schedule))) : ($doctor->working_days ?? [1, 2, 3, 4, 5]),
             'working_hours' => $doctor->working_hours ?: BookingService::DEFAULT_HOURS,
+            'weekly_schedule' => $doctor->weekly_schedule,
         ]);
     }
 
@@ -146,6 +147,8 @@ class PortalController extends Controller
             'years_experience' => $d->years_experience,
             'fee' => $this->booking->fee($d),
             'slot_minutes' => (int) ($d->slot_minutes ?: 30),
+            'accepts_online' => (bool) $d->accepts_online,
+            'accepts_in_person' => (bool) $d->accepts_in_person,
             'has_photo' => (bool) $d->user?->avatar_path,
         ];
     }
@@ -291,7 +294,7 @@ class PortalController extends Controller
             'can_modify' => $this->booking->patientMayModify($a),
             'cutoff_hours' => $this->booking->cutoffHours(),
             'invoice' => $invoice,
-            'join_url' => $a->visit_type === 'online' && in_array($a->status, ['scheduled', 'confirmed', 'checked_in'], true) ? $a->meeting_url : null,
+            'join_url' => $a->visit_type === 'online' && in_array($a->status, Appointment::ACTIVE, true) ? $a->meeting_url : null,
         ];
     }
 }

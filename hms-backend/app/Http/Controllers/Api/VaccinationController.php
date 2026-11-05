@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Patient;
 use App\Models\Vaccination;
+use App\Services\PatientAccess;
 use App\Support\Audit;
 use App\Support\Notify;
 use Illuminate\Http\Request;
@@ -12,13 +13,16 @@ use Illuminate\Http\Request;
 /** Clinical staff record vaccinations; patients see them read-only in their portal. */
 class VaccinationController extends Controller
 {
-    public function index(Patient $patient)
+    public function index(Request $request, Patient $patient)
     {
+        PatientAccess::authorize($request->user(), $patient);
+
         return $patient->vaccinations()->with('administrator:id,name')->orderByDesc('administered_on')->get();
     }
 
     public function store(Request $request, Patient $patient)
     {
+        PatientAccess::authorize($request->user(), $patient);
         $data = $request->validate([
             'vaccine_name' => 'required|string|max:150',
             'dose_number' => 'nullable|integer|min:1|max:10',
@@ -37,6 +41,7 @@ class VaccinationController extends Controller
 
     public function destroy(Request $request, Patient $patient, Vaccination $vaccination)
     {
+        PatientAccess::authorize($request->user(), $patient);
         abort_if($vaccination->patient_id !== $patient->id, 404);
         Audit::log($request, 'vaccination_deleted', $vaccination);
         $vaccination->delete();

@@ -13,6 +13,9 @@ type Visit = {
   id: string; visited_at: string; type: string; doctor: string | null; specialization: string | null; chief_complaint: string | null;
   diagnosis: string | null; vitals: Record<string, unknown> | null; notes: string | null; hidden: string[];
   prescription: { id: string; status: string; notes: string | null; items: RxItem[] } | null;
+  diagnosis_codes?: { code: string; description: string }[];
+  follow_up?: { days: number; note: string | null } | null;
+  letters?: { id: string; type: "sick_note" | "referral"; issued_at: string }[];
 };
 type Rx = { id: string; status: string; issued_at: string; doctor: string | null; specialization: string | null; visit_date: string | null; diagnosis: string | null; items: RxItem[] };
 type Lab = { id: number; test_name: string; category: "lab" | "imaging"; status: string; result: string | null; notes: string | null; released_at: string; has_file: boolean; result_file_name: string | null; doctor?: { user?: { name: string } } | null };
@@ -73,13 +76,23 @@ export default function RecordsPage() {
                   <p className="text-sm text-[var(--muted)]">Dr. {v.doctor ?? "—"}{v.specialization ? ` · ${v.specialization}` : ""}</p>
                   <dl className="mt-3 space-y-3 text-sm">
                     {v.chief_complaint && <div><dt className="text-xs font-semibold text-[var(--muted)]">Reason for visit</dt><dd>{v.chief_complaint}</dd></div>}
-                    {v.diagnosis && <div><dt className="text-xs font-semibold text-[var(--muted)]">Diagnosis</dt><dd className="whitespace-pre-wrap">{v.diagnosis}</dd></div>}
+                    {(v.diagnosis || (v.diagnosis_codes?.length ?? 0) > 0) && (
+                      <div><dt className="text-xs font-semibold text-[var(--muted)]">Diagnosis</dt>
+                        <dd>
+                          {v.diagnosis && <span className="block whitespace-pre-wrap">{v.diagnosis}</span>}
+                          {v.diagnosis_codes?.map((c) => <span key={c.code} className="mr-2 mt-1 inline-block rounded-full bg-[var(--primary-tint)]/30 px-2.5 py-0.5 text-xs"><b className="font-mono">{c.code}</b> {c.description}</span>)}
+                        </dd></div>
+                    )}
+                    {v.follow_up && <div><dt className="text-xs font-semibold text-[var(--muted)]">Follow-up</dt><dd>Review in {v.follow_up.days} days{v.follow_up.note ? ` · ${v.follow_up.note}` : ""}</dd></div>}
                     {v.vitals && Object.keys(v.vitals).length > 0 && (
                       <div><dt className="text-xs font-semibold text-[var(--muted)]">Vitals</dt>
                         <dd className="mt-1 flex flex-wrap gap-2">{Object.entries(v.vitals).map(([k, val]) => <span key={k} className="rounded-lg bg-slate-100 px-2 py-1 text-xs"><span className="text-[var(--muted)]">{k.replace(/_/g, " ")}:</span> <strong>{String(val)}</strong></span>)}</dd></div>
                     )}
                     {v.notes && <div><dt className="text-xs font-semibold text-[var(--muted)]">Doctor&apos;s notes</dt><dd className="whitespace-pre-wrap">{v.notes}</dd></div>}
                   </dl>
+                  {(v.letters?.length ?? 0) > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-2">{v.letters?.map((l) => <Link key={l.id} href={`/portal/letters/${l.id}`} className={btnGhost}>{l.type === "sick_note" ? "Sick note" : "Referral letter"} · {t("Print")}</Link>)}</div>
+                  )}
                   {v.hidden.length > 0 && <p className="mt-3 text-xs text-[var(--muted)]">Your doctor has not shared their {v.hidden.join(", ")} for this visit. Ask them at your next appointment or <Link href="/portal/messages" className="underline">send a message</Link>.</p>}
                   {v.prescription && (
                     <div className="mt-4 rounded-2xl bg-[var(--primary-tint)]/20 p-4">

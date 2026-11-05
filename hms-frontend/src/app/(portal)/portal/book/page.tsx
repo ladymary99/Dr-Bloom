@@ -238,7 +238,7 @@ function BookPageContent() {
                     <DoctorAvatar id={d.id} name={d.name} hasPhoto={d.has_photo} />
                     <div className="min-w-0 flex-1">
                       <h2 className="font-heading text-base font-semibold text-[var(--ink)]">Dr. {d.name}</h2>
-                      <p className="text-sm text-[var(--muted)]">{[d.specialization, d.department].filter(Boolean).join(" · ")}</p>
+                      <p className="text-sm text-[var(--muted)]">{[d.specialization, d.department && !(d.specialization ?? "").toLowerCase().includes(d.department.toLowerCase()) ? d.department : null].filter(Boolean).join(" · ")}</p>
                       <p className="mt-1 text-xs text-[var(--ink)]">
                         {d.years_experience ? `${d.years_experience} yrs experience · ` : ""}
                         {d.languages.length ? d.languages.join(", ") : ""}

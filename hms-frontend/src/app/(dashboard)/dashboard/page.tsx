@@ -6,8 +6,10 @@ import { api } from "@/lib/api";
 import { useAuthStore } from "@/store/auth";
 import FinanceOverview from "@/components/FinanceOverview";
 import LowStockAlerts from "@/components/LowStockAlerts";
+import DoctorHome from "@/components/DoctorHome";
+import { fmtDate, fmtDateTime, greetingName } from "@/lib/format";
 
-type Trend = { current: number; pct: number; up: boolean };
+type Trend = { current: number; previous: number; delta: number; pct: number | null; direction: "up" | "down" | "flat"; up: boolean };
 
 type Stats = {
   my_department: { id: number; name: string; code: string } | null;
@@ -32,10 +34,7 @@ type Stats = {
     patient: { mrn: string; first_name: string; last_name: string } | null;
     doctor: { user: { name: string } } | null;
   }[];
-  recent_activity: {
-    id: number; action: string; auditable_type: string; created_at: string;
-    user: { name: string } | null;
-  }[];
+  recent_activity: { id: number; message: string; link: string | null; at: string; count: number }[];
 };
 
 type StatCard = {
@@ -100,6 +99,12 @@ const moneyShort = (v: number) =>
   v >= 1000 ? `$${(v / 1000).toFixed(1)}K` : `$${Math.round(v)}`;
 
 export default function DashboardPage() {
+  const roles = useAuthStore((s) => s.roles);
+  const isDoctorOnly = roles.includes("doctor") && !roles.includes("admin");
+  return isDoctorOnly ? <DoctorHome /> : <HospitalDashboard />;
+}
+
+function HospitalDashboard() {
   const user = useAuthStore((s) => s.user);
   const roles = useAuthStore((s) => s.roles);
   const [stats, setStats] = useState<Stats | null>(null);
@@ -156,15 +161,15 @@ export default function DashboardPage() {
       <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="font-heading text-3xl font-bold tracking-tight text-[var(--ink)]">
-            {greeting()}, {user?.name?.split(" ")[0]}
+            {greeting()}, {greetingName(user?.name)}
           </h1>
           <p className="mt-1 text-sm text-[var(--muted)]">
-            Here&apos;s everything happening at the hospital — live from your database.
+            {roles.includes("admin") ? "How the hospital is doing today." : "Your overview for today."}
           </p>
         </div>
         <div className="flex items-center gap-2 rounded-full border border-[var(--border)] bg-white px-5 py-2 text-sm font-medium text-[var(--muted)] shadow-sm">
           <svg {...dashIconProps} className="h-4 w-4"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg>
-          {new Date().toLocaleDateString([], { weekday: "long", day: "numeric", month: "long" })}
+          {fmtDate(new Date().toISOString())}
         </div>
       </div>
 
@@ -176,8 +181,12 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between">
                 <span className="text-[var(--primary)]" aria-hidden>{card.icon}</span>
                 {card.trend && (
-                  <span className={`text-xs font-semibold ${card.trend.up ? "text-emerald-600" : "text-red-500"}`}>
-                    {card.trend.up ? "▲" : "▼"} {card.trend.pct}%
+                  <span
+                    title={`${card.trend.current} this week vs ${card.trend.previous} last week`}
+                    className={`text-xs font-semibold ${card.trend.direction === "flat" ? "text-[var(--muted)]" : card.trend.direction === "up" ? "text-emerald-700" : "text-red-600"}`}
+                  >
+                    {card.trend.direction === "flat" ? "—" : card.trend.direction === "up" ? "▲" : "▼"}{" "}
+                    {card.trend.direction === "flat" ? "no change" : card.trend.pct !== null ? `${card.trend.pct}%` : `${card.trend.delta > 0 ? "+" : ""}${card.trend.delta}`}
                     <span className="ml-1 font-normal text-[var(--muted)]/70">vs last week</span>
                   </span>
                 )}
@@ -269,7 +278,7 @@ export default function DashboardPage() {
                       {a.patient ? `${a.patient.first_name} ${a.patient.last_name}` : "—"}
                     </span>
                     <span className="text-xs tabular-nums text-[var(--muted)]">
-                      {new Date(a.appointment_at).toLocaleString([], { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                      {fmtDateTime(a.appointment_at)}
                     </span>
                   </div>
                   <div className="mt-0.5 flex items-center justify-between gap-2">
@@ -293,19 +302,12 @@ export default function DashboardPage() {
           <ul className="divide-y divide-[var(--border)]/60">
             {stats?.recent_activity.map((log) => (
               <li key={log.id} className="flex items-center gap-3 px-6 py-3 text-sm transition-colors hover:bg-[var(--primary-tint)]/10">
-                <span className={`h-2 w-2 flex-none rounded-full ${
-                  ["login_failed", "login_blocked_deactivated", "deleted"].includes(log.action)
-                    ? "bg-red-400"
-                    : ["created", "login", "created_user"].includes(log.action)
-                      ? "bg-emerald-400"
-                      : "bg-[var(--primary-tint)]"
-                }`} />
-                <span className="min-w-0 flex-1 truncate text-[var(--muted)]">
-                  <b className="font-medium text-[var(--ink)]">{log.user?.name ?? "System"}</b>{" "}
-                  {log.action.replaceAll("_", " ")}{" "}
-                  <span className="text-[var(--muted)]/70">{log.auditable_type.split("\\").pop()}</span>
+                <span className="h-2 w-2 flex-none rounded-full bg-[var(--primary-tint)]" />
+                <span className="min-w-0 flex-1 truncate text-[var(--ink)]">
+                  {log.link ? <Link href={log.link} className="hover:underline">{log.message}</Link> : log.message}
+                  {log.count > 1 && <span className="ml-1.5 rounded-full bg-[var(--primary-tint)]/30 px-1.5 py-0.5 text-[10px] font-bold text-[var(--primary)]">×{log.count}</span>}
                 </span>
-                <span className="flex-none text-xs tabular-nums text-[var(--muted)]">{timeAgo(log.created_at)}</span>
+                <span className="flex-none text-xs tabular-nums text-[var(--muted)]">{timeAgo(log.at)}</span>
               </li>
             ))}
             {stats?.recent_activity.length === 0 && (
@@ -372,17 +374,26 @@ function TrendChart({ data }: { data: { label: string; patients: number; visits:
   const [hover, setHover] = useState<number | null>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
 
+  /** Monotone cubic (Fritsch–Carlson): passes through every point and never overshoots, so values stay >= 0. */
   function smoothPath(key: "patients" | "visits"): string {
     const p = data.map((d, i): [number, number] => [x(i), y(d[key])]);
-    if (p.length < 2) return "";
-    let dPath = `M ${p[0][0]},${p[0][1]}`;
-    for (let i = 0; i < p.length - 1; i++) {
-      const p0 = p[Math.max(0, i - 1)], p1 = p[i], p2 = p[i + 1], p3 = p[Math.min(p.length - 1, i + 2)];
-      const c1x = p1[0] + (p2[0] - p0[0]) / 6, c1y = p1[1] + (p2[1] - p0[1]) / 6;
-      const c2x = p2[0] - (p3[0] - p1[0]) / 6, c2y = p2[1] - (p3[1] - p1[1]) / 6;
-      dPath += ` C ${c1x},${c1y} ${c2x},${c2y} ${p2[0]},${p2[1]}`;
+    const n = p.length;
+    if (n < 2) return "";
+    const dx: number[] = [], m: number[] = [];
+    for (let i = 0; i < n - 1; i++) { dx.push(p[i + 1][0] - p[i][0]); m.push((p[i + 1][1] - p[i][1]) / dx[i]); }
+    const t: number[] = [m[0]];
+    for (let i = 1; i < n - 1; i++) t.push(m[i - 1] * m[i] <= 0 ? 0 : (m[i - 1] + m[i]) / 2);
+    t.push(m[n - 2]);
+    for (let i = 0; i < n - 1; i++) {
+      if (m[i] === 0) { t[i] = 0; t[i + 1] = 0; continue; }
+      const a = t[i] / m[i], b = t[i + 1] / m[i], h = Math.hypot(a, b);
+      if (h > 3) { t[i] = (3 * a * m[i]) / h; t[i + 1] = (3 * b * m[i]) / h; }
     }
-    return dPath;
+    let d = `M ${p[0][0]},${p[0][1]}`;
+    for (let i = 0; i < n - 1; i++) {
+      d += ` C ${p[i][0] + dx[i] / 3},${p[i][1] + (t[i] * dx[i]) / 3} ${p[i + 1][0] - dx[i] / 3},${p[i + 1][1] - (t[i + 1] * dx[i]) / 3} ${p[i + 1][0]},${p[i + 1][1]}`;
+    }
+    return d;
   }
 
   const areaPath = (key: "patients" | "visits") =>
@@ -466,74 +477,36 @@ function TrendChart({ data }: { data: { label: string; patients: number; visits:
 /* ---------- department performance — vertical bars (like the reference) ---------- */
 function DeptBars({ data }: { data: { name: string; current: number; previous: number }[] }) {
   const max = Math.max(...data.map((d) => d.current), 1);
-
-  const totalCurrent = data.reduce((s, d) => s + d.current, 0);
-  const totalPrevious = data.reduce((s, d) => s + d.previous, 0);
-  const totalPct = totalPrevious > 0 ? Math.round(((totalCurrent - totalPrevious) / totalPrevious) * 100) : 0;
-
-  const pctOf = (d: { current: number; previous: number }) =>
-    d.previous > 0
-      ? Math.round(((d.current - d.previous) / d.previous) * 100)
-      : d.current > 0 ? 100 : 0;
+  const totalCurrent = data.reduce((sum, d) => sum + d.current, 0);
+  const totalPrevious = data.reduce((sum, d) => sum + d.previous, 0);
+  // percentages on a tiny base are noise: only show one when last month had meaningful revenue
+  const change = (cur: number, prev: number) =>
+    prev >= 100 ? { text: `${cur >= prev ? "▲" : "▼"} ${Math.abs(Math.round(((cur - prev) / prev) * 100))}%`, tone: cur > prev ? "text-emerald-700" : cur < prev ? "text-red-600" : "text-[var(--muted)]" }
+      : cur > 0 ? { text: "new", tone: "text-[var(--muted)]" } : { text: "—", tone: "text-[var(--muted)]" };
+  const total = change(totalCurrent, totalPrevious);
 
   return (
     <div className="mt-4">
-      {/* header like the reference */}
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-baseline gap-2">
-          <span className="font-heading text-2xl font-bold tabular-nums text-[var(--ink)]">
-            {moneyShort(totalCurrent)}
-          </span>
-          <span className="text-xs text-[var(--muted)]">this month</span>
-          <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${totalPct >= 0 ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-600"}`}>
-            {totalPct >= 0 ? "▲" : "▼"} {Math.abs(totalPct)}%
-          </span>
-        </div>
-        <span className="text-xs tabular-nums text-[var(--muted)]">{data.length} departments</span>
+      <div className="mb-4 flex flex-wrap items-baseline gap-2">
+        <span className="font-heading text-2xl font-bold tabular-nums text-[var(--ink)]">{moneyShort(totalCurrent)}</span>
+        <span className="text-xs text-[var(--muted)]">this month</span>
+        <span className={`text-xs font-semibold ${total.tone}`}>{total.text} vs last month</span>
       </div>
-
-      {/* bars */}
-      <div className="relative">
-        {/* faint gridlines like the reference */}
-        {[0.25, 0.5, 0.75].map((f) => (
-          <div key={f} className="absolute left-0 right-0 border-t border-dashed border-[var(--border)]"
-            style={{ bottom: `${f * 100}%` }} />
-        ))}
-
-        <div className="relative flex h-44 items-end gap-2 sm:gap-3">
-          {data.map((d, i) => {
-            const p = pctOf(d);
-            const up = p >= 0;
-            return (
-              <div key={i} className="group flex h-full flex-1 flex-col items-center justify-end">
-                {/* tooltip pill — appears above the hovered bar */}
-                <div className="pointer-events-none relative mb-1 w-full opacity-0 transition-all duration-200 group-hover:opacity-100">
-                  <div className="absolute bottom-0 left-1/2 flex -translate-x-1/2 flex-col items-center">
-                    <div className="whitespace-nowrap rounded-lg bg-[var(--ink)] px-2.5 py-1 text-[10px] font-semibold text-white shadow-lg">
-                      {moneyShort(d.current)}
-                      <span className={`ml-1.5 ${up ? "text-emerald-400" : "text-red-400"}`}>
-                        {up ? "▲" : "▼"}{Math.abs(p)}%
-                      </span>
-                    </div>
-                    <div className="h-1.5 w-px bg-[var(--ink)]" />
-                  </div>
-                </div>
-
-                {/* bar — light by default, solid primary on hover */}
-                <div
-                  className="w-full max-w-14 rounded-t-xl bg-[var(--primary-tint)] transition-all duration-300 group-hover:bg-[var(--primary)]"
-                  style={{ height: `${Math.max((d.current / max) * 100, 4)}%` }}
-                />
-
-                {/* department label */}
-                <span className="mt-2 max-w-full truncate text-[9px] text-[var(--muted)] sm:text-[10px]">
-                  {d.name.length > 7 ? d.name.slice(0, 6) + "…" : d.name}
-                </span>
+      <ul className="space-y-2.5">
+        {data.map((d) => {
+          const c = change(d.current, d.previous);
+          return (
+            <li key={d.name} className="grid grid-cols-[minmax(6rem,9rem)_1fr_auto] items-center gap-3 text-sm">
+              <span className="truncate text-[var(--ink)]" title={d.name}>{d.name}</span>
+              <div className="h-3 overflow-hidden rounded-full bg-[var(--primary-tint)]/25" role="img" aria-label={`${d.name}: ${moneyShort(d.current)}`}>
+                <div className="h-full rounded-full bg-[var(--primary)] transition-all duration-500" style={{ width: `${Math.max((d.current / max) * 100, d.current > 0 ? 3 : 0)}%` }} />
               </div>
-            );
-          })}
-        </div>
-      </div>
+              <span className="w-24 text-right tabular-nums"><b className="font-semibold text-[var(--ink)]">{moneyShort(d.current)}</b> <span className={`text-[10px] font-semibold ${c.tone}`}>{c.text}</span></span>
+            </li>
+          );
+        })}
+      </ul>
+      <div className="mt-2 grid grid-cols-[minmax(6rem,9rem)_1fr_auto] gap-3 text-[10px] text-[var(--muted)]"><span /><span className="flex justify-between"><span>0</span><span>{moneyShort(max)}</span></span><span className="w-24" /></div>
     </div>
   );
 }

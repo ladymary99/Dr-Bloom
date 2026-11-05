@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/store/auth";
+import { fmtShortDateTime } from "@/lib/format";
 
 type Target = "all_staff" | "doctors" | "patients" | "everyone";
 
@@ -51,7 +52,7 @@ const iconProps = {
 
 function fmtDateTime(iso: string | null): string {
   if (!iso) return "—";
-  return new Date(iso).toLocaleString([], { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  return fmtShortDateTime(iso);
 }
 
 export default function AnnouncementsPage() {

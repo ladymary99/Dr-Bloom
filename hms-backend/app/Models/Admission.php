@@ -10,11 +10,13 @@ class Admission extends Model
     protected $fillable = [
         'patient_id', 'bed_id', 'doctor_id', 'admitted_at',
         'discharged_at', 'status', 'diagnosis', 'notes',
+        'expected_discharge_at', 'discharge_summary', 'discharge_condition',
     ];
 
     protected $casts = [
         'admitted_at' => 'datetime',
         'discharged_at' => 'datetime',
+        'expected_discharge_at' => 'datetime',
     ];
 
     public function patient(): BelongsTo

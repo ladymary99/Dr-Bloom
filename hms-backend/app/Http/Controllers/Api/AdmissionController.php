@@ -64,6 +64,9 @@ class AdmissionController extends Controller
         if ($bed->status !== 'available') {
             return response()->json(['message' => 'This bed is not available.'], 422);
         }
+        if ($bed->cleaning_status !== 'clean') {
+            return response()->json(['message' => 'This bed still needs cleaning before it can be used.'], 422);
+        }
 
         if (Admission::where('patient_id', $data['patient_id'])->where('status', 'admitted')->exists()) {
             return response()->json(['message' => 'Patient already has an active admission.'], 422);
@@ -92,12 +95,65 @@ class AdmissionController extends Controller
             return response()->json(['message' => 'Already discharged.'], 422);
         }
 
-        DB::transaction(function () use ($admission) {
-            $admission->update(['status' => 'discharged', 'discharged_at' => now()]);
-            $admission->bed->update(['status' => 'available']);
+        // a discharge always leaves a written summary behind
+        $data = $request->validate([
+            'discharge_summary' => 'required|string|min:10|max:6000',
+            'discharge_condition' => 'required|in:improved,stable,deteriorated,against_advice,other',
+        ]);
+
+        DB::transaction(function () use ($admission, $data) {
+            $admission->update($data + ['status' => 'discharged', 'discharged_at' => now()]);
+            // the bed is free for housekeeping, but not for the next patient until it is marked clean
+            $admission->bed->update(['status' => 'available', 'cleaning_status' => 'needs_cleaning']);
         });
+        \App\Support\Audit::log($request, 'patient_discharged', $admission, null, [], ['condition' => $data['discharge_condition']]);
 
         return $admission->fresh();
+    }
+
+    // PUT /api/admissions/{admission} — expected discharge date, working diagnosis, notes
+    public function update(Request $request, Admission $admission)
+    {
+        if ($this->isDoctor($request)) {
+            abort_if($admission->doctor_id !== $this->doctorProfileId($request), 404);
+        }
+        abort_if($admission->status !== 'admitted', 422, 'This admission is closed.');
+        $data = $request->validate([
+            'expected_discharge_at' => 'nullable|date|after_or_equal:today',
+            'diagnosis' => 'nullable|string|max:2000',
+            'notes' => 'nullable|string|max:2000',
+        ]);
+        $admission->update($data);
+
+        return $admission->fresh();
+    }
+
+    // POST /api/admissions/{admission}/transfer {bed_id, reason}
+    public function transfer(Request $request, Admission $admission)
+    {
+        if ($this->isDoctor($request)) {
+            abort_if($admission->doctor_id !== $this->doctorProfileId($request), 404);
+        }
+        abort_if($admission->status !== 'admitted', 422, 'This admission is closed.');
+        $data = $request->validate(['bed_id' => 'required|exists:beds,id', 'reason' => 'required|string|min:3|max:300']);
+
+        $new = Bed::findOrFail($data['bed_id']);
+        if ($new->id === $admission->bed_id) {
+            return response()->json(['message' => 'The patient is already in that bed.'], 422);
+        }
+        if ($new->status !== 'available' || $new->cleaning_status !== 'clean') {
+            return response()->json(['message' => 'That bed is not available or still needs cleaning.'], 422);
+        }
+
+        $old = $admission->bed;
+        DB::transaction(function () use ($admission, $new, $old) {
+            $old->update(['status' => 'available', 'cleaning_status' => 'needs_cleaning']);
+            $new->update(['status' => 'occupied']);
+            $admission->update(['bed_id' => $new->id]);
+        });
+        \App\Support\Audit::log($request, 'patient_transferred', $admission, null, ['bed_id' => $old->id], ['bed_id' => $new->id, 'reason' => $data['reason']]);
+
+        return $admission->fresh()->load('bed.ward');
     }
 
     private function scopeToDoctor(Request $request, Builder $query): void

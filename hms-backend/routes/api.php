@@ -1,5 +1,8 @@
 <?php
 
+use App\Http\Controllers\Api\DoctorHomeController;
+use App\Http\Controllers\Api\PatientAccessController;
+use App\Http\Controllers\Api\PatientChartController;
 use App\Http\Controllers\Api\BillingController;
 use App\Http\Controllers\Api\DoctorAvailabilityController;
 use App\Http\Controllers\Api\MessageController;
@@ -130,6 +133,9 @@ Route::get('/public/doctors', [PublicController::class, 'doctors']);
     Route::put('/beds/{bed}', [BedController::class, 'update'])->middleware('permission:manage departments');
     Route::get('/admissions', [AdmissionController::class, 'index']);
     Route::post('/admissions', [AdmissionController::class, 'store'])->middleware('permission:view patients');
+    Route::put('/admissions/{admission}', [AdmissionController::class, 'update'])->middleware('permission:view patients');
+    Route::post('/admissions/{admission}/transfer', [AdmissionController::class, 'transfer'])->middleware('permission:view patients');
+    Route::put('/beds/{bed}/cleaned', [BedController::class, 'cleaned'])->middleware('permission:view patients');
     Route::put('/admissions/{admission}/discharge', [AdmissionController::class, 'discharge'])->middleware('permission:view patients');
     Route::get('/lookups/doctors', [LookupController::class, 'doctors']);
     Route::get('/dashboard/stats', [DashboardController::class, 'stats']);
@@ -174,8 +180,44 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/messages/{thread}', [MessageController::class, 'show']);
     Route::post('/messages/{thread}/reply', [MessageController::class, 'reply'])->middleware('throttle:30,1');
 
+    // sessions / lock screen (any role)
+    Route::get('/me/sessions', [AuthController::class, 'sessions']);
+    Route::delete('/me/sessions/{id}', [AuthController::class, 'revokeSession']);
+    Route::post('/me/verify-password', [AuthController::class, 'verifyPassword'])->middleware('throttle:10,1');
+    Route::put('/me/staff-profile', [AuthController::class, 'updateStaffProfile']);
+
+    // patient access: lookup + break-the-glass, and the admin review queue
+    Route::get('/patient-lookup', [PatientAccessController::class, 'lookup'])->middleware(['permission:view patients', 'throttle:40,1']);
+    Route::post('/patients/{patient}/break-glass', [PatientAccessController::class, 'breakGlass'])->middleware(['permission:view patients', 'throttle:10,1']);
+    Route::get('/admin/access-grants', [PatientAccessController::class, 'index'])->middleware('role:admin');
+    Route::put('/admin/access-grants/{grant}/review', [PatientAccessController::class, 'review'])->middleware('role:admin');
+
+    // booking helpers for staff
+    Route::get('/appointment-slots/{doctor}', [AppointmentController::class, 'slots'])->middleware('permission:manage appointments|conduct visits');
+    Route::post('/appointments/resolve-stale', [AppointmentController::class, 'resolveStale'])->middleware(['permission:manage appointments', 'throttle:6,1']);
+
+    // clinician reading
+    Route::get('/patients/{patient}/chart', [PatientChartController::class, 'show'])->middleware('permission:view patients');
+    Route::get('/lookups/icd10', [VisitController::class, 'icd10'])->middleware('permission:conduct visits');
+    Route::get('/messages-stats', [MessageController::class, 'stats']);
+    Route::put('/messages/{thread}/resolve', [MessageController::class, 'resolve']);
+
     // doctor schedule
     Route::middleware('permission:conduct visits')->group(function () {
+        Route::get('/doctor/home', [DoctorHomeController::class, 'index']);
+        Route::get('/doctor/slots', [DoctorAvailabilityController::class, 'mySlots']);
+        Route::post('/doctor/availability/preview', [DoctorAvailabilityController::class, 'preview']);
+        // encounter workflow
+        Route::get('/visits/{visit}', [VisitController::class, 'show']);
+        Route::put('/visits/{visit}', [VisitController::class, 'update']);
+        Route::post('/visits/{visit}/complete', [VisitController::class, 'complete']);
+        Route::get('/visits/{visit}/versions', [VisitController::class, 'versions']);
+        Route::post('/visits/{visit}/addenda', [VisitController::class, 'addendum']);
+        Route::post('/visits/{visit}/letters', [VisitController::class, 'addLetter']);
+        Route::delete('/visits/{visit}/prescription-items/{item}', [VisitController::class, 'removePrescriptionItem']);
+        Route::get('/prescriptions/{prescription}', [VisitController::class, 'prescription']);
+        Route::get('/letters/{letter}', [VisitController::class, 'letter']);
+        Route::post('/lab-tests/{labTest}/review', [LabTestController::class, 'review']);
         Route::get('/doctor/availability', [DoctorAvailabilityController::class, 'show']);
         Route::put('/doctor/availability', [DoctorAvailabilityController::class, 'update']);
         Route::post('/doctor/time-off', [DoctorAvailabilityController::class, 'addTimeOff']);
@@ -244,6 +286,7 @@ Route::middleware(['auth:sanctum', 'role:patient'])->prefix('portal')->group(fun
     Route::get('/lab-tests', [PortalRecordsController::class, 'labTests']);
     Route::get('/lab-tests/{labTest}/file', [PortalRecordsController::class, 'labFile']);
     Route::get('/vaccinations', [PortalRecordsController::class, 'vaccinations']);
+    Route::get('/letters/{letter}', [PortalRecordsController::class, 'letter']);
 
     // documents (private disk, streamed through the API, never a public URL)
     Route::get('/documents', [PatientDocumentController::class, 'myDocuments']);

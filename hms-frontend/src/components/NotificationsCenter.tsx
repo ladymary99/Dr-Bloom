@@ -12,7 +12,7 @@ import { EmptyState, ErrorState, ListSkeleton, PageHeader, btnGhost, cardCls } f
 type Notif = { id: string; data: { type?: string; message?: string; link?: string }; read_at: string | null; created_at: string };
 
 /** Full-page notifications center (shared by patient portal and staff dashboard). */
-export default function NotificationsCenter() {
+export default function NotificationsCenter({ wide }: { wide?: boolean }) {
   const t = useT();
   const router = useRouter();
   const [items, setItems] = useState<Notif[] | null>(null);
@@ -52,7 +52,7 @@ export default function NotificationsCenter() {
   const unread = (items ?? []).filter((n) => !n.read_at).length;
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className={wide ? "max-w-3xl" : "mx-auto max-w-3xl"}>
       <PageHeader
         title={t("Notifications")}
         subtitle={unread ? `${unread} unread` : "You're all caught up."}

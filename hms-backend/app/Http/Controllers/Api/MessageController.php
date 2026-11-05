@@ -7,6 +7,7 @@ use App\Models\Message;
 use App\Models\MessageThread;
 use App\Models\Patient;
 use App\Models\User;
+use App\Services\PatientAccess;
 use App\Support\Audit;
 use App\Support\Notify;
 use Illuminate\Http\Request;
@@ -55,6 +56,8 @@ class MessageController extends Controller
             'last_message_at' => $t->last_message_at,
             'preview' => $last ? mb_strimwidth($last->body, 0, 90, '…') : '',
             'unread' => $t->messages->whereNull('read_at')->where('sender_id', '!=', $viewerId)->count(),
+            'status' => $t->status,
+            'resolved_at' => $t->resolved_at,
             'patient' => $t->patient ? ['id' => $t->patient->id, 'name' => $t->patient->first_name.' '.$t->patient->last_name, 'mrn' => $t->patient->mrn] : null,
             'staff' => $t->staff ? ['id' => $t->staff->id, 'name' => $t->staff->name] : null,
         ];
@@ -78,7 +81,45 @@ class MessageController extends Controller
             });
         }
 
+        $q->when($request->query('status') && in_array($request->query('status'), ['open', 'resolved'], true), fn ($qq) => $qq->where('status', $request->query('status')));
+
         return $q->orderByDesc('last_message_at')->limit(100)->get()->map(fn ($t) => $this->summarize($t, $u->id));
+    }
+
+    // GET /api/messages/stats  (staff) — how quickly the clinic answers
+    public function stats(Request $request)
+    {
+        abort_if($this->isPatient($request), 403);
+        $u = $request->user();
+        $mine = fn () => MessageThread::where(function ($q) use ($u) {
+            $q->where('staff_user_id', $u->id);
+            if ($u->can('manage appointments') || $u->hasRole('admin')) {
+                $q->orWhereNull('staff_user_id');
+            }
+        });
+        $avg = $mine()->whereNotNull('first_staff_reply_at')->where('created_at', '>=', now()->subDays(30))
+            ->selectRaw('avg(extract(epoch from (first_staff_reply_at - created_at)) / 60) as m')->value('m');
+
+        return response()->json([
+            'open' => $mine()->where('status', 'open')->count(),
+            'awaiting_reply' => $mine()->where('status', 'open')->whereNull('first_staff_reply_at')->count(),
+            'avg_first_response_minutes' => $avg !== null ? (int) round($avg) : null,
+        ]);
+    }
+
+    // PUT /api/messages/{thread}/resolve  {resolved: bool}  (staff) — close / reopen a conversation
+    public function resolve(Request $request, MessageThread $thread)
+    {
+        abort_if($this->isPatient($request), 403);
+        $this->authorizeThread($request, $thread);
+        $resolved = $request->validate(['resolved' => 'required|boolean'])['resolved'];
+
+        $thread->update($resolved
+            ? ['status' => 'resolved', 'resolved_at' => now(), 'resolved_by' => $request->user()->id]
+            : ['status' => 'open', 'resolved_at' => null, 'resolved_by' => null]);
+        Audit::log($request, $resolved ? 'thread_resolved' : 'thread_reopened', $thread);
+
+        return $this->summarize($thread->fresh()->load('patient:id,mrn,first_name,last_name', 'staff:id,name', 'messages:id,thread_id,sender_id,body,read_at,created_at'), $request->user()->id);
     }
 
     public function show(Request $request, MessageThread $thread)
@@ -138,6 +179,7 @@ class MessageController extends Controller
         } else {
             $data = $request->validate($rules + ['patient_id' => 'required|uuid|exists:patients,id']);
             $patient = Patient::findOrFail($data['patient_id']);
+            PatientAccess::authorize($u, $patient);
             $staffUserId = $u->id;
             Audit::log($request, 'messaged_patient', $patient);
         }
@@ -164,7 +206,11 @@ class MessageController extends Controller
 
         $msg = DB::transaction(function () use ($thread, $data, $request) {
             $m = Message::create(['thread_id' => $thread->id, 'sender_id' => $request->user()->id, 'body' => $data['body']]);
-            $thread->update(['last_message_at' => now()]);
+            $thread->update(['last_message_at' => now(), 'status' => 'open', 'resolved_at' => null, 'resolved_by' => null]);
+            // response-time tracking: the first answer from the clinic
+            if (! $this->isPatient($request) && ! $thread->first_staff_reply_at) {
+                $thread->update(['first_staff_reply_at' => now()]);
+            }
             // a staff member answering a general-inbox thread takes ownership of it
             if (! $this->isPatient($request) && $thread->staff_user_id === null) {
                 $thread->update(['staff_user_id' => $request->user()->id]);

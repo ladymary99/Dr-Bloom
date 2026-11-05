@@ -11,9 +11,9 @@ class MessageThread extends Model
 {
     use HasUuids;
 
-    protected $fillable = ['patient_id', 'staff_user_id', 'subject', 'last_message_at'];
+    protected $fillable = ['patient_id', 'staff_user_id', 'subject', 'last_message_at', 'status', 'resolved_at', 'resolved_by', 'first_staff_reply_at'];
 
-    protected $casts = ['last_message_at' => 'datetime'];
+    protected $casts = ['last_message_at' => 'datetime', 'resolved_at' => 'datetime', 'first_staff_reply_at' => 'datetime'];
 
     public function patient(): BelongsTo
     {

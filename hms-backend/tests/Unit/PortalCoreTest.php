@@ -5,6 +5,7 @@ namespace Tests\Unit;
 use App\Support\Booking\CancellationPolicy;
 use App\Support\Booking\SlotGenerator;
 use App\Support\Calendar\IcsBuilder;
+use App\Support\NameCase;
 use App\Support\Security\Totp;
 use App\Support\Security\UploadInspector;
 use DateTimeImmutable as D;
@@ -142,5 +143,60 @@ class PortalCoreTest extends TestCase
         $this->assertFalse($v::validSignature($payload, "t=$t,v1=$sig", 'other', $t + 10));             // wrong secret
         $this->assertFalse($v::validSignature($payload, "t=$t,v1=$sig", $secret, $t + 301));            // replay
         $this->assertFalse($v::validSignature($payload, '', $secret, $t));
+    }
+
+    // ───────── doctor schedule upgrade ─────────
+
+    private function weekly(array $busy = [], ?int $max = null, int $buffer = 0): array
+    {
+        $weekly = [
+            '1' => ['start' => '09:00', 'end' => '12:00', 'breaks' => []],                       // Monday: short morning
+            '2' => ['start' => '13:00', 'end' => '16:00', 'breaks' => [['14:00', '14:30']]],      // Tuesday: afternoon, break
+            '3' => ['start' => '09:00', 'end' => '12:00', 'breaks' => [['09:30', '10:00'], ['11:00', '11:30']]], // two breaks
+        ];
+
+        return SlotGenerator::generate(new D('2026-10-26'), new D('2026-10-28'), [], [], 30, $busy, [], new D('2026-10-26 00:00:00'), 0, $weekly, $buffer, $max);
+    }
+
+    public function test_different_hours_per_weekday_and_days_not_listed_are_off(): void
+    {
+        $s = $this->weekly();
+        $this->assertSame(['09:00', '09:30', '10:00', '10:30', '11:00', '11:30'], $s['2026-10-26']);
+        $this->assertSame(['13:00', '13:30', '14:30', '15:00', '15:30'], $s['2026-10-27']);
+    }
+
+    public function test_multiple_breaks_in_one_day(): void
+    {
+        $this->assertSame(['09:00', '10:00', '10:30', '11:30'], $this->weekly()['2026-10-28']);
+    }
+
+    public function test_buffer_time_after_a_booking(): void
+    {
+        // 09:00-09:30 booked + 15 min buffer blocks the 09:30 slot (it would start inside the buffer)
+        $s = $this->weekly([['2026-10-26 09:00:00', '2026-10-26 09:30:00']], null, 15);
+        $this->assertSame(['10:00', '10:30', '11:00', '11:30'], $s['2026-10-26']);
+        // without a buffer the next slot is free
+        $this->assertSame('09:30', $this->weekly([['2026-10-26 09:00:00', '2026-10-26 09:30:00']])['2026-10-26'][0]);
+    }
+
+    public function test_daily_cap_hides_a_full_day(): void
+    {
+        $busy = [['2026-10-26 09:00:00', '2026-10-26 09:30:00'], ['2026-10-26 09:30:00', '2026-10-26 10:00:00']];
+        $s = $this->weekly($busy, 2);
+        $this->assertArrayNotHasKey('2026-10-26', $s);   // 2 of 2 booked
+        $this->assertArrayHasKey('2026-10-27', $s);       // other days unaffected
+        $this->assertArrayHasKey('2026-10-26', $this->weekly($busy, 3));
+    }
+
+    public function test_name_case_only_fixes_all_lower_or_upper(): void
+    {
+        $this->assertSame('Ava King', NameCase::format('ava king'));
+        $this->assertSame("Lessie O'Keefe", NameCase::format("LESSIE O'KEEFE"));
+        $this->assertSame('Jean-Luc', NameCase::format('jean-luc'));
+        $this->assertSame('Obie McClure', NameCase::format('Obie McClure'));   // mixed case untouched
+        $this->assertSame('van der Berg', NameCase::format('van der Berg'));   // mixed case untouched
+        $this->assertSame('Maya Sokolov', NameCase::format('  maya   sokolov '));
+        $this->assertSame('Özgür', NameCase::format('ÖZGÜR'));
+        $this->assertNull(NameCase::format(null));
     }
 }

@@ -35,7 +35,7 @@ export default function ClaimsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="w-full">
       <PageHeader title="Insurance claims" subtitle="Track claims submitted to insurers. Marking a claim as paid books the payout into the invoice." />
       {msg && !edit && <div className="mb-4"><Notice kind={msg.kind}>{msg.text}</Notice></div>}
       <div className="mb-4"><label htmlFor="claim-status" className="sr-only">Filter by status</label>

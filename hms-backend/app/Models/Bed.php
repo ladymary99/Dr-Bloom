@@ -8,7 +8,9 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Bed extends Model
 {
-    protected $fillable = ['ward_id', 'bed_number', 'status'];
+    protected $fillable = ['ward_id', 'bed_number', 'status', 'cleaning_status', 'is_isolation'];
+
+    protected $casts = ['is_isolation' => 'boolean'];
 
     public function ward(): BelongsTo
     {

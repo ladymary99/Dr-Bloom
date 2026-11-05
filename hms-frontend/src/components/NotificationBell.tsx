@@ -35,6 +35,8 @@ export const TYPE_ICON: Record<string, IconName> = {
   payment_received: "payments",
   claim_update: "payments",
   data_request: "audit",
+  break_glass: "audit",
+  lab_result: "lab",
   new_patient: "patients",
   payment: "payments",
   announcement: "announcements",

@@ -17,7 +17,8 @@ class DoctorQueueController extends Controller
 
         $query = Appointment::with(
                 'patient:id,mrn,first_name,last_name,date_of_birth,gender,blood_type,allergies',
-                'department:id,name'
+                'department:id,name',
+                'visit:id,appointment_id,status'
             )
             ->whereDate('appointment_at', $request->date ?: today())
             ->orderBy('appointment_at');

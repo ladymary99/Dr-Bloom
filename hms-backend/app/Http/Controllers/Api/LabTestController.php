@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\LabTest;
+use App\Services\PatientAccess;
 use App\Support\Audit;
 use App\Support\Notify;
 use App\Support\Security\UploadInspector;
@@ -36,6 +37,8 @@ class LabTestController extends Controller
             'notes'      => 'nullable|string|max:1000',
         ]);
 
+        PatientAccess::authorize($request->user(), $data['patient_id']);
+
         $labTest = LabTest::create([
             ...$data,
             'doctor_id' => $request->user()->staffProfile?->id,
@@ -56,6 +59,7 @@ class LabTestController extends Controller
             'status' => 'sometimes|in:ordered,in_progress,completed,cancelled',
             'result' => 'required_if:status,completed|nullable|string|max:5000',
             'notes'  => 'nullable|string|max:1000',
+            'is_critical' => 'sometimes|boolean',
         ]);
 
         if (($data['status'] ?? null) === 'completed') {
@@ -64,7 +68,15 @@ class LabTestController extends Controller
 
         $labTest->update($data);
 
-        return $labTest->fresh();
+        // a result that just completed (or was just flagged critical) goes straight to the ordering doctor
+        $fresh = $labTest->fresh()->load('patient:id,first_name,last_name', 'doctor.user');
+        if (($data['status'] ?? null) === 'completed' && $fresh->doctor?->user) {
+            $who = $fresh->patient ? $fresh->patient->first_name.' '.$fresh->patient->last_name : 'a patient';
+            Notify::user($fresh->doctor->user, 'lab_result', ($fresh->is_critical ? 'CRITICAL result: ' : 'Result ready: ')."{$fresh->test_name} for {$who}.", '/doctor/home');
+        }
+        Audit::log($request, 'lab_result_updated', $labTest, null, [], collect($data)->only(['status', 'is_critical'])->all());
+
+        return $fresh;
     }
 
     // POST /api/lab-tests/{labTest}/file — attach a PDF/image result (validated server-side, private disk)
@@ -100,6 +112,7 @@ class LabTestController extends Controller
     // GET /api/lab-tests/{labTest}/file — staff download
     public function downloadFile(Request $request, LabTest $labTest)
     {
+        PatientAccess::authorize($request->user(), $labTest->patient_id);
         abort_unless($labTest->result_file_path && Storage::disk('local')->exists($labTest->result_file_path), 404);
         Audit::log($request, 'lab_file_viewed', $labTest);
 
@@ -109,6 +122,7 @@ class LabTestController extends Controller
     // POST /api/lab-tests/{labTest}/release  {released: true|false} — show/hide the result for the patient
     public function release(Request $request, LabTest $labTest)
     {
+        PatientAccess::authorize($request->user(), $labTest->patient_id);
         $data = $request->validate(['released' => 'required|boolean']);
         if ($data['released']) {
             abort_if($labTest->status !== 'completed', 422, 'Only completed results can be released to the patient.');
@@ -123,6 +137,17 @@ class LabTestController extends Controller
             Notify::patient($patient, 'result_ready', "Your result \"{$labTest->test_name}\" is now available.", '/portal/records',
                 'A new result is available');
         }
+
+        return $labTest->fresh();
+    }
+
+    // POST /api/lab-tests/{labTest}/review — the ordering doctor acknowledges the result
+    public function review(Request $request, LabTest $labTest)
+    {
+        PatientAccess::authorize($request->user(), $labTest->patient_id);
+        abort_if($labTest->status !== 'completed', 422, 'Only completed results can be reviewed.');
+        $labTest->update(['reviewed_at' => $labTest->reviewed_at ?? now(), 'reviewed_by' => $request->user()->id]);
+        Audit::log($request, 'lab_result_reviewed', $labTest);
 
         return $labTest->fresh();
     }

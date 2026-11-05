@@ -64,16 +64,39 @@ class DoctorDashboardController extends Controller
             ]);
         }
 
+        $booking = app(\App\Services\BookingService::class);
+        $today = now()->toDateString();
+        $iso = (string) now()->format('N');
+
+        $team = StaffProfile::with('user:id,name,email', 'timeOff')
+            ->where('department_id', $department->id)
+            ->where('is_active', true)
+            ->orderBy('position')
+            ->orderBy('employee_code')
+            ->get(['id', 'user_id', 'employee_code', 'position', 'specialization', 'department_id', 'phone', 'working_days', 'working_hours', 'weekly_schedule', 'slot_minutes', 'buffer_minutes', 'max_per_day'])
+            ->map(function (StaffProfile $m) use ($booking, $today, $iso) {
+                $row = $m->only(['id', 'employee_code', 'position', 'specialization', 'phone']) + ['user' => $m->user];
+                if ($m->position !== 'doctor') {
+                    return $row;
+                }
+                $cfg = $m->weekly_schedule ? ($m->weekly_schedule[$iso] ?? null)
+                    : (in_array((int) $iso, $m->working_days ?? [1, 2, 3, 4, 5], true) ? ($m->working_hours ?: \App\Services\BookingService::DEFAULT_HOURS) : null);
+                $onLeave = $m->timeOff->contains(fn ($t) => $t->starts_on->toDateString() <= $today && $t->ends_on->toDateString() >= $today);
+                $next = collect($booking->availability($m))->map(fn ($times, $d) => "$d {$times[0]}")->first();
+
+                return $row + [
+                    'today' => ['status' => $onLeave ? 'leave' : ($cfg ? 'working' : 'off'), 'hours' => $cfg ? "{$cfg['start']}–{$cfg['end']}" : null],
+                    'patients_today' => Appointment::where('doctor_id', $m->id)->whereDate('appointment_at', $today)->whereIn('status', Appointment::ACTIVE)->count(),
+                    'next_available' => $next,
+                ];
+            });
+
         return response()->json([
             'department' => $department,
-            'team' => StaffProfile::with('user:id,name,email')
-                ->where('department_id', $department->id)
-                ->where('is_active', true)
-                ->orderBy('position')
-                ->orderBy('employee_code')
-                ->get(['id', 'user_id', 'employee_code', 'position', 'specialization', 'department_id']),
+            'team' => $team,
             'stats' => [
                 'staff' => StaffProfile::where('department_id', $department->id)->where('is_active', true)->count(),
+                // same definition as every appointment list: appointments of this department's doctors
                 'appointments' => Appointment::where('department_id', $department->id)->count(),
             ],
         ]);

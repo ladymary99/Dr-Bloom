@@ -5,6 +5,8 @@ import { api } from "@/lib/api";
 import { useAuthStore } from "@/store/auth";
 import ProfileAvatar from "@/components/ProfileAvatar";
 import AvatarUploadButton from "@/components/AvatarUploadButton";
+import TwoFactorCard from "@/components/TwoFactorCard";
+import StaffAccountCards from "@/components/StaffAccountCards";
 
 const inputCls =
   "w-full rounded-xl border border-[var(--border)] bg-white px-4 py-2.5 text-sm text-[var(--ink)] outline-none transition placeholder:text-[var(--muted)]/60 focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--primary-tint)]/30";
@@ -16,6 +18,12 @@ export default function ProfilePage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const setAuth = useAuthStore((state) => state.setAuth);
+  const refreshMe = async () => {
+    const { data } = await api.get("/me");
+    const st = useAuthStore.getState();
+    setAuth({ token: st.token, user: data.user ?? data, roles: st.roles, permissions: st.permissions });
+  };
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -43,7 +51,10 @@ export default function ProfilePage() {
     { label: "Role", value: roles.join(", ") || undefined, capitalize: true },
     { label: "Specialization", value: user?.staff_profile?.specialization },
     { label: "Department", value: user?.staff_profile?.department?.name },
-    { label: "Position", value: user?.staff_profile?.position, capitalize: true },
+    // "Position" only when it adds something beyond the role (a doctor's position IS "doctor")
+    { label: "Position", value: roles.some((r) => r.toLowerCase() === user?.staff_profile?.position?.toLowerCase()) ? undefined : user?.staff_profile?.position, capitalize: true },
+    { label: "Phone", value: user?.staff_profile?.phone },
+    { label: "Licence number", value: user?.staff_profile?.license_number },
   ].filter((d) => d.value);
 
   return (
@@ -136,6 +147,11 @@ export default function ProfilePage() {
           </button>
         </form>
       </section>
+
+      <div className="mt-6 space-y-6">
+        <StaffAccountCards />
+        <TwoFactorCard enabled={!!user?.two_factor_enabled} onChange={refreshMe} />
+      </div>
     </div>
   );
 }
