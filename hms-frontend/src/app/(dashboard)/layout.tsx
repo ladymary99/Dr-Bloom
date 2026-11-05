@@ -231,10 +231,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           {/* Right: bell + ⋯ menu + avatar */}
           <div className="ml-auto flex flex-none items-center gap-1.5">
-            <button onClick={() => window.dispatchEvent(new Event("open-command-palette"))} aria-label="Search (Ctrl+K)" title="Search (Ctrl+K)"
-              className="hidden h-10 items-center gap-2 rounded-full border border-[var(--border)] bg-white px-4 text-sm text-[var(--muted)] transition hover:border-[var(--primary-tint)] sm:flex">
-              <span aria-hidden>⌕</span>Search<kbd className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-700">Ctrl K</kbd>
-            </button>
             <NotificationBell viewAllHref="/notifications" />
             {/* ⋯ menu */}
             <div className="relative">

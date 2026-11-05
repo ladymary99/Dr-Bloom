@@ -34,10 +34,8 @@ export default function CommandPalette() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); setOpen((o) => !o); } };
-    const onOpen = () => setOpen(true);
     window.addEventListener("keydown", onKey);
-    window.addEventListener("open-command-palette", onOpen);
-    return () => { window.removeEventListener("keydown", onKey); window.removeEventListener("open-command-palette", onOpen); };
+    return () => window.removeEventListener("keydown", onKey);
   }, []);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect -- reset the palette each time it opens
