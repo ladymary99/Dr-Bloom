@@ -181,7 +181,7 @@ export default function PatientChartPage() {
         ))}
 
         {tab === "vax" && <div className={`${cardCls} p-2`}><PatientVaccinations patientId={id} /></div>}
-        {tab === "docs" && <div className={`${cardCls} p-6`}><PatientFiles basePath={`/patients/${id}`} patientName={`${p.first_name} ${p.last_name}`} canDelete /></div>}
+        {tab === "docs" && <div className={`${cardCls} p-6`}><PatientFiles basePath={`/patients/${id}`} canDelete /></div>}
         {tab === "billing" && chart.billing && (
           <div className="grid gap-3 sm:grid-cols-3">
             <div className={`${cardCls} p-5`}><p className="text-xs font-semibold text-[var(--muted)]">Outstanding</p><p className="font-heading text-2xl font-semibold">{money(chart.billing.outstanding)}</p></div>
