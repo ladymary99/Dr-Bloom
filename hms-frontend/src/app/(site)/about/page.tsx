@@ -1,10 +1,15 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 
 type Info = { hospital_name: string; doctors: number; departments: number };
+
+/* same spacing + heading style as the homepage sections */
+const SECTION = "px-6 py-[46px]";
+const H2 = "font-heading text-3xl font-bold tracking-tight text-[var(--ink)] sm:text-4xl lg:text-5xl";
 
 /* shared icon style — same as the services page */
 const iconProps = {
@@ -184,7 +189,7 @@ function ValuesPanel() {
   );
 }
 
-/* ---------- what makes us special — auto slider like the image ---------- */
+/* ---------- what makes us special — same as the homepage ---------- */
 const specials = [
   {
     id: "01",
@@ -223,29 +228,38 @@ function SpecialSlider() {
   }, [paused]);
 
   const current = specials[index];
-  const next = specials[(index + 1) % specials.length];
 
   return (
-    <section className="py-24">
-      <div className="mx-auto max-w-6xl px-4">
-        {/* heading — like "Production" */}
-        <div className="mb-10 flex items-end justify-center gap-4">
-          <h2 className="font-heading text-4xl font-bold tracking-tight text-[var(--ink)] sm:text-5xl">
-            What makes us special
-          </h2>
+    <section className={SECTION}>
+      <div className="mx-auto max-w-6xl">
+        <div className="mb-8 flex flex-wrap items-end justify-center gap-4 lg:mb-10">
+          <h2 className={`${H2} text-center`}>What makes us special</h2>
           <span className="mb-1 hidden rounded-full border border-[var(--border)] bg-white px-3 py-1 text-xs text-[var(--muted)] sm:block">
             {current.id} / 0{specials.length}
           </span>
         </div>
 
-        {/* panel — like the image */}
         <div
-          className="relative h-[580px] overflow-hidden rounded-3xl bg-gradient-to-br from-[var(--primary-tint)]/25 via-[var(--primary-tint)]/15 to-white sm:h-[540px]"
+          className="grid gap-6 overflow-hidden rounded-3xl bg-gradient-to-br from-[var(--primary-tint)]/25 via-[var(--primary-tint)]/15 to-white p-4 sm:p-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-stretch lg:gap-12 lg:p-10"
           onMouseEnter={() => setPaused(true)}
           onMouseLeave={() => setPaused(false)}
         >
-          {/* left: index list + description */}
-          <div className="absolute left-6 top-10 z-20 sm:left-12">
+          {/* image — on top for mobile/tablet, right on desktop */}
+          <div className="relative order-1 aspect-[4/3] w-full overflow-hidden rounded-2xl shadow-2xl shadow-[var(--primary)]/20 lg:order-2 lg:aspect-auto lg:h-[460px]">
+            {specials.map((s, i) => (
+              <img
+                key={s.id}
+                src={s.img}
+                alt={s.title}
+                className={`absolute inset-0 h-full w-full object-cover transition-all duration-[1400ms] ease-out ${
+                  i === index ? "scale-100 opacity-100" : "scale-110 opacity-0"
+                }`}
+              />
+            ))}
+          </div>
+
+          {/* list + description */}
+          <div className="order-2 flex flex-col justify-between gap-8 lg:order-1 lg:py-2">
             <ul className="space-y-3">
               {specials.map((s, i) => (
                 <li key={s.id}>
@@ -261,7 +275,7 @@ function SpecialSlider() {
                       }`}
                     />
                     <span
-                      className={`font-heading text-xs sm:text-sm ${
+                      className={`font-heading text-sm sm:text-base ${
                         i === index ? "font-semibold text-[var(--primary)]" : "text-[var(--muted)]"
                       }`}
                     >
@@ -272,52 +286,21 @@ function SpecialSlider() {
               ))}
             </ul>
 
-            <p className="mt-40 hidden max-w-[240px] text-xs leading-relaxed text-[var(--muted)] sm:mt-48 sm:block">
-              {current.desc}
-            </p>
-          </div>
-
-          {/* center: big photo (crossfade + slow zoom) */}
-          <div className="absolute left-1/2 top-1/2 h-[420px] w-[62%] max-w-[560px] -translate-x-1/2 -translate-y-1/2 sm:w-[48%]">
-            {specials.map((s, i) => (
-              <img
-                key={s.id}
-                src={s.img}
-                alt={s.title}
-                className={`absolute inset-0 h-full w-full rounded-2xl object-cover shadow-2xl shadow-[var(--primary)]/20 transition-all duration-[1400ms] ease-out ${
-                  i === index ? "scale-100 opacity-100" : "scale-110 opacity-0"
-                }`}
-              />
-            ))}
-          </div>
-
-          {/* right: faded preview of the next slide */}
-          <div className="absolute right-6 top-1/2 hidden h-[300px] w-[220px] -translate-y-1/2 overflow-hidden rounded-2xl opacity-40 sm:block">
-            <img
-              key={next.id}
-              src={next.img}
-              alt=""
-              className="h-full w-full object-cover transition-all duration-[1400ms]"
-            />
-            <div className="absolute inset-0 bg-white/40" />
-          </div>
-
-          {/* navy info card — bottom right */}
-          <div className="absolute bottom-8 right-6 z-20 sm:right-12">
-            <div className="w-[240px] rounded-2xl bg-[var(--primary)] p-6 text-white shadow-xl shadow-[var(--primary)]/30">
-              <div className="font-heading text-sm font-semibold text-[var(--primary-tint)]">
-                {current.id}
-              </div>
-              <div className="font-heading mt-2 text-2xl font-bold leading-tight">
-                {current.title}
-              </div>
+            <div>
+              <p key={current.id} className="max-w-sm text-sm leading-relaxed text-[var(--muted)]">
+                {current.desc}
+              </p>
+              <Link
+                href="/services"
+                className="mt-5 inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.25em] text-[var(--primary)] transition-all hover:gap-3"
+              >
+                More info
+                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 12h14M13 6l6 6-6 6" />
+                </svg>
+              </Link>
             </div>
           </div>
-
-          {/* mobile description */}
-          <p className="absolute bottom-8 left-6 right-6 text-xs leading-relaxed text-[var(--muted)] sm:hidden">
-            {current.desc}
-          </p>
         </div>
       </div>
     </section>
@@ -377,9 +360,8 @@ export default function AboutPage() {
       {/* Values panel — sticky left column */}
       <ValuesPanel />
 
-      {/* What makes us special — auto slider */}
+      {/* What makes us special — same as the homepage */}
       <SpecialSlider />
-
     </div>
   );
 }

@@ -7,6 +7,10 @@ import { api } from "@/lib/api";
 
 type Info = { hospital_name: string; doctors: number; departments: number };
 
+/* every section: 46px top/bottom, 24px left/right */
+const SECTION = "px-6 py-[46px]";
+const H2 = "font-heading text-3xl font-bold tracking-tight text-[var(--ink)] sm:text-4xl lg:text-5xl";
+
 function CountUp({ value, suffix, start }: { value: number; suffix?: string; start: boolean }) {
   const [p, setP] = useState(0);
 
@@ -65,15 +69,15 @@ function StatsStrip({ info }: { info: Info | null }) {
   ];
 
   return (
-    <section ref={ref}>
-      <div className="mx-auto grid max-w-6xl grid-cols-2 justify-items-center gap-x-1 gap-y-5 px-4 py-14 md:grid-cols-4">
+    <section ref={ref} className={SECTION}>
+      <div className="mx-auto grid max-w-6xl grid-cols-2 justify-items-center gap-x-4 gap-y-8 md:grid-cols-4">
         {stats.map((s) => (
-          <div key={s.label} className="flex items-center gap-4">
+          <div key={s.label} className="flex flex-col items-center gap-3 text-center sm:flex-row sm:gap-4 sm:text-left">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-[var(--primary)]">
               {s.icon}
             </div>
             <div>
-              <div className="font-heading text-3xl font-bold tabular-nums text-[var(--primary)]">
+              <div className="font-heading text-2xl font-bold tabular-nums text-[var(--primary)] sm:text-3xl">
                 <CountUp value={s.value} suffix={s.suffix} start={start} />
               </div>
               <div className="mt-0.5 text-xs text-[var(--muted)]">{s.label}</div>
@@ -109,7 +113,6 @@ const norm = (s: string) => s.toLowerCase().trim();
 /* ---------- departments (3 cards from the database) ---------- */
 type Dept = { id: number; name: string; code: string; description: string | null };
 
-/* shown if the API has not returned departments */
 const fallbackDepts: (Dept & { services: string[] })[] = [
   { id: 1, name: "Cardiology", code: "CAR", services: ["ECG & Echo", "Stress tests", "Heart clinic"], description: "Comprehensive heart and cardiovascular care — from routine ECGs and stress tests to long-term management of blood pressure, cholesterol and heart disease." },
   { id: 2, name: "Neurology", code: "NEU", services: ["Migraine care", "Epilepsy", "Stroke recovery"], description: "Expert diagnosis and treatment of neurological conditions, including migraines, epilepsy, stroke recovery and disorders of the brain, spine and nervous system." },
@@ -126,7 +129,6 @@ const iconProps = {
   viewBox: "0 0 24 24",
 } as const;
 
-/* [keywords matched against the department name, icon] — first match wins */
 const deptIcons: [string[], React.ReactNode][] = [
   [["cardio"], <svg key="cardio" {...iconProps}><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21.2l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.8z"/><path d="M7 12h3l1.5-3 2 5L15 12h2"/></svg>],
   [["neuro"], <svg key="neuro" {...iconProps}><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>],
@@ -145,7 +147,7 @@ function iconFor(name: string) {
   for (const [keys, icon] of deptIcons) {
     if (keys.some((k) => n.includes(k))) return icon;
   }
-  return deptIcons[0][1]; // heart fallback
+  return deptIcons[0][1];
 }
 
 function DepartmentsSection() {
@@ -161,26 +163,28 @@ function DepartmentsSection() {
 
   const list = depts === null ? null : (depts.length ? depts : fallbackDepts).slice(0, 3);
 
+  /* mobile: 1 col · tablet: 2 cols (3rd card full width) · desktop: 3 cols */
+  const grid = "mt-10 grid gap-5 sm:grid-cols-2 lg:mt-14 lg:grid-cols-3 lg:gap-8";
+  const cell = "sm:last:col-span-2 lg:last:col-span-1";
+
   return (
-    <section ref={ref} className="py-24">
-      <div className="mx-auto max-w-6xl px-4">
+    <section ref={ref} className={SECTION}>
+      <div className="mx-auto max-w-6xl">
         <div
           className="text-center transition-all duration-700 ease-out"
           style={{ opacity: visible ? 1 : 0, transform: visible ? "none" : "translateY(24px)" }}
         >
-          <h2 className="font-heading text-4xl font-bold tracking-tight text-[var(--ink)] sm:text-5xl">
-            Our departments
-          </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-[var(--muted)]">
+          <h2 className={H2}>Our departments</h2>
+          <p className="mx-auto mt-4 max-w-2xl text-sm text-[var(--muted)] sm:text-base">
             Specialist care for every stage of life — from routine checkups to
             emergencies, all connected under one roof and one patient record.
           </p>
         </div>
 
-        <div className="mt-14 grid gap-8 md:grid-cols-3">
+        <div className={grid}>
           {list === null
             ? [0, 1, 2].map((i) => (
-                <div key={i} className="min-h-[380px] animate-pulse rounded-3xl bg-[var(--primary-tint)]/20" />
+                <div key={i} className={`${cell} min-h-[320px] animate-pulse rounded-3xl bg-[var(--primary-tint)]/20`} />
               ))
             : list.map((d, i) => {
                 const meta = fallbackDepts.find((f) => norm(f.code) === norm(d.code) || norm(f.name) === norm(d.name));
@@ -188,12 +192,7 @@ function DepartmentsSection() {
                 return (
                   <div
                     key={`${d.code}-${d.id}`}
-                    onMouseMove={(e) => {
-                      const r = e.currentTarget.getBoundingClientRect();
-                      e.currentTarget.style.setProperty("--mx", `${e.clientX - r.left}px`);
-                      e.currentTarget.style.setProperty("--my", `${e.clientY - r.top}px`);
-                    }}
-                    className="glow-card flex min-h-[380px] flex-col overflow-hidden rounded-3xl bg-[var(--primary-tint)]/25 p-8 transition-all duration-700 ease-out"
+                    className={`${cell} flex min-h-[340px] flex-col overflow-hidden rounded-3xl bg-[var(--primary-tint)]/25 p-6 transition-all duration-700 ease-out lg:min-h-[380px] lg:p-8`}
                     style={{
                       opacity: visible ? 1 : 0,
                       transform: visible ? "none" : "translateY(40px)",
@@ -206,7 +205,7 @@ function DepartmentsSection() {
                         {d.code}
                       </span>
                     </div>
-                    <h3 className="font-heading mt-8 text-xl font-semibold leading-snug text-[var(--ink)]">
+                    <h3 className="font-heading mt-6 text-xl font-semibold leading-snug text-[var(--ink)] lg:mt-8">
                       {d.name}
                     </h3>
                     <p className="mt-3 text-sm leading-relaxed text-[var(--muted)]">
@@ -234,7 +233,7 @@ function DepartmentsSection() {
         </div>
 
         <div
-          className="mt-14 text-center transition-all duration-700 ease-out"
+          className="mt-10 text-center transition-all duration-700 ease-out lg:mt-14"
           style={{
             opacity: visible ? 1 : 0,
             transform: visible ? "none" : "translateY(24px)",
@@ -256,7 +255,7 @@ function DepartmentsSection() {
   );
 }
 
-/* ---------- specialist doctors (4 cards from the database) ---------- */
+/* ---------- specialist doctors ---------- */
 type Doctor = {
   id?: number;
   name: string;
@@ -267,7 +266,6 @@ type Doctor = {
   image?: string | null;
 };
 
-/* shown if the API has not returned doctors */
 const fallbackDoctors: Doctor[] = [
   { name: "Dr. Sarah Khan", specialization: "Cardiologist", department: "Cardiology" },
   { name: "Dr. Omar Rahimi", specialization: "Neurologist", department: "Neurology" },
@@ -277,8 +275,6 @@ const fallbackDoctors: Doctor[] = [
 
 const doctorPhotos = ["/doc1.webp", "/doc2.webp", "/doc3.webp", "/doc4.webp"];
 
-/* demo portraits only for the demo doctors (matched by name); every other doctor uses
-   their own photo from the backend, or a designed initials portrait */
 const demoPhotos: Record<string, string> = Object.fromEntries(
   fallbackDoctors.map((d, i) => [norm(d.name), doctorPhotos[i]])
 );
@@ -293,6 +289,44 @@ const initialsOf = (name: string) =>
     .map((w) => w.charAt(0).toUpperCase())
     .join("");
 
+function DoctorCard({ d, isCopy }: { d: Doctor; isCopy: boolean }) {
+  const [failed, setFailed] = useState(false);
+  const photo = failed ? null : photoFor(d);
+  const dept = d.department?.trim() || "General";
+  const spec = d.specialization ?? "Specialist";
+
+  return (
+    <Link
+      href={`/doctors?department=${encodeURIComponent(dept)}`}
+      aria-hidden={isCopy || undefined}
+      tabIndex={isCopy ? -1 : undefined}
+      className="group relative mr-4 h-[320px] w-[240px] flex-none overflow-hidden rounded-3xl border border-[var(--border)] bg-gradient-to-b from-white to-[var(--primary-tint)]/20 shadow-sm transition-all duration-500 hover:-translate-y-1 hover:border-[var(--primary-tint)] hover:shadow-xl hover:shadow-[var(--primary-tint)]/30 sm:mr-5 sm:h-[340px] sm:w-[260px]"
+    >
+      {photo ? (
+        <img
+          src={photo}
+          alt={isCopy ? "" : d.name}
+          draggable={false}
+          onError={() => setFailed(true)}
+          className="absolute inset-0 h-full w-full object-cover object-top transition-transform duration-[1200ms] ease-out group-hover:scale-105"
+        />
+      ) : (
+        <div className="absolute inset-0 flex items-start justify-center overflow-hidden bg-gradient-to-br from-[var(--primary-tint)]/50 to-[var(--primary-tint)]/15 pt-16">
+          <span className="font-heading text-7xl font-bold tracking-tight text-[var(--primary)]/70">
+            {initialsOf(d.name)}
+          </span>
+        </div>
+      )}
+
+      {/* solid block, bottom-left — same style as the hero blocks */}
+      <div className="absolute bottom-0 left-0 w-[86%] rounded-[20px_20px_20px_0] bg-[var(--primary-tint)] px-5 pb-4 pt-4">
+        <div className="font-heading truncate text-sm font-semibold text-[var(--primary)]">{d.name}</div>
+        <div className="mt-1 truncate text-[11px] text-[var(--muted)]">{spec}</div>
+      </div>
+    </Link>
+  );
+}
+
 function DoctorsSection() {
   const { ref, visible } = useReveal(0.1);
   const [doctors, setDoctors] = useState<Doctor[] | null>(null);
@@ -306,15 +340,14 @@ function DoctorsSection() {
 
   const list = doctors === null ? null : (doctors.length ? doctors : fallbackDoctors).slice(0, 12);
 
-  /* repeat the list until one copy is wide enough, then use two copies for a seamless loop */
   const base: Doctor[] = list
     ? Array.from({ length: Math.max(1, Math.ceil(8 / list.length)) }, () => list).flat()
     : [];
   const track = [...base, ...base];
-  const duration = `${Math.max(base.length, 1) * 7}s`; // slow, calm speed
+  const duration = `${Math.max(base.length, 1) * 7}s`;
 
   return (
-    <section ref={ref} className="overflow-hidden pb-24 pt-4">
+    <section ref={ref} className={`${SECTION} overflow-hidden`}>
       <style>{`
         @keyframes drMarquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
         .dr-track { display: flex; width: max-content; animation: drMarquee var(--dur, 60s) linear infinite; will-change: transform; }
@@ -325,135 +358,88 @@ function DoctorsSection() {
         }
       `}</style>
 
-      <div className="mx-auto max-w-6xl px-4">
+      <div className="mx-auto max-w-6xl">
         <div
           className="text-center transition-all duration-700 ease-out"
           style={{ opacity: visible ? 1 : 0, transform: visible ? "none" : "translateY(24px)" }}
         >
-          <h2 className="font-heading text-4xl font-bold tracking-tight text-[var(--ink)] sm:text-5xl">
-            Our specialist doctors
-          </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-[var(--muted)]">
+          <h2 className={H2}>Our specialist doctors</h2>
+          <p className="mx-auto mt-4 max-w-2xl text-sm text-[var(--muted)] sm:text-base">
             Certified specialists from every department — available for in-person
             consultations and online video visits.
           </p>
         </div>
-      </div>
 
-      <div className="mx-auto max-w-6xl px-4">
-      {/* carousel — slides slowly from right to left, pauses on hover */}
-      <div
-        className="dr-wrap mt-11 overflow-hidden py-3 transition-all duration-1000 ease-out"
-        style={{
-          opacity: visible ? 1 : 0,
-          transform: visible ? "none" : "translateY(30px)",
-          WebkitMaskImage: "linear-gradient(to right, transparent, #000 8%, #000 92%, transparent)",
-          maskImage: "linear-gradient(to right, transparent, #000 8%, #000 92%, transparent)",
-        }}
-      >
-        {list === null ? (
-          <div className="flex">
-            {[0, 1, 2, 3, 4].map((i) => (
-              <div key={i} className="mr-5 h-[340px] w-[260px] flex-none animate-pulse rounded-3xl bg-[var(--primary-tint)]/20" />
-            ))}
-          </div>
-        ) : (
-          <div className="dr-track" style={{ ["--dur" as string]: duration } as React.CSSProperties}>
-            {track.map((d, i) => {
-              const photo = photoFor(d);
-              const dept = d.department?.trim() || "General";
-              const spec = d.specialization ?? "Specialist";
-              const isCopy = i >= base.length;
-              return (
-                <Link
-                  key={`${i}-${d.name}`}
-                  href={`/doctors?department=${encodeURIComponent(dept)}`}
-                  aria-hidden={isCopy || undefined}
-                  tabIndex={isCopy ? -1 : undefined}
-                  className="group relative mr-5 h-[340px] w-[260px] flex-none overflow-hidden rounded-3xl border border-[var(--border)] bg-gradient-to-b from-white to-[var(--primary-tint)]/20 shadow-sm transition-all duration-500 hover:-translate-y-1 hover:border-[var(--primary-tint)] hover:shadow-xl hover:shadow-[var(--primary-tint)]/30"
-                >
-                  {photo ? (
-                    <img
-                      src={photo}
-                      alt={isCopy ? "" : d.name}
-                      draggable={false}
-                      className="absolute inset-0 h-full w-full object-cover object-top transition-transform duration-[1200ms] ease-out group-hover:scale-105"
-                    />
-                  ) : (
-                    <div className="absolute inset-0 flex items-start justify-center overflow-hidden bg-gradient-to-br from-[var(--primary-tint)]/50 to-[var(--primary-tint)]/15 pt-16">
-                      <span className="font-heading text-7xl font-bold tracking-tight text-[var(--primary)]/70">
-                        {initialsOf(d.name)}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* soft white fade + name and specialty, bottom left */}
-                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-white via-white/90 to-transparent px-5 pb-5 pt-20">
-                    <div className="font-heading text-sm font-semibold text-[var(--ink)]">{d.name}</div>
-                    <div className="mt-1 text-[11px] text-[var(--muted)]">{spec}</div>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      </div>
-
-      <div
-        className="mt-14 text-center transition-all duration-700 ease-out"
-        style={{
-          opacity: visible ? 1 : 0,
-          transform: visible ? "none" : "translateY(24px)",
-          transitionDelay: "400ms",
-        }}
-      >
-        <Link
-          href="/doctors"
-          className="bg-[var(--primary-tint)] btn-hero btn-roll inline-flex items-center gap-2 rounded-full px-8 py-3 text-xs uppercase"
+        {/* carousel — slides slowly right to left, pauses on hover (no side fade) */}
+        <div
+          className="dr-wrap mt-10 overflow-hidden py-3 transition-all duration-1000 ease-out"
+          style={{ opacity: visible ? 1 : 0, transform: visible ? "none" : "translateY(30px)" }}
         >
-          <span className="roll">
-            <span className="r1">See all doctors</span>
-            <span className="r2" aria-hidden="true">See all doctors</span>
-          </span>
-        </Link>
+          {list === null ? (
+            <div className="flex">
+              {[0, 1, 2, 3, 4].map((i) => (
+                <div key={i} className="mr-4 h-[320px] w-[240px] flex-none animate-pulse rounded-3xl bg-[var(--primary-tint)]/20 sm:mr-5 sm:h-[340px] sm:w-[260px]" />
+              ))}
+            </div>
+          ) : (
+            <div className="dr-track" style={{ ["--dur" as string]: duration } as React.CSSProperties}>
+              {track.map((d, i) => (
+                <DoctorCard key={`${i}-${d.name}`} d={d} isCopy={i >= base.length} />
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div
+          className="mt-10 text-center transition-all duration-700 ease-out"
+          style={{
+            opacity: visible ? 1 : 0,
+            transform: visible ? "none" : "translateY(24px)",
+            transitionDelay: "400ms",
+          }}
+        >
+          <Link
+            href="/doctors"
+            className="bg-[var(--primary-tint)] btn-hero btn-roll inline-flex items-center gap-2 rounded-full px-8 py-3 text-xs uppercase"
+          >
+            <span className="roll">
+              <span className="r1">See all doctors</span>
+              <span className="r2" aria-hidden="true">See all doctors</span>
+            </span>
+          </Link>
+        </div>
       </div>
     </section>
   );
 }
 
-/* ---------- about — our story (left) + image (right) ---------- */
-/* Put your own photo in the /public folder and change this path (e.g. "/about.webp") */
+/* ---------- about ---------- */
 const aboutImage = "/7.webp";
 
 function AboutSection() {
   const { ref, visible } = useReveal(0.15);
 
   return (
-    <section ref={ref} className="overflow-x-clip py-24">
-      <div className="mx-auto grid max-w-6xl items-center gap-14 px-4 lg:grid-cols-2 lg:gap-16">
-        {/* left: our story */}
+    <section ref={ref} className={`${SECTION} overflow-x-clip`}>
+      <div className="mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-2 lg:gap-16">
         <div
           className="transition-all duration-700 ease-out"
           style={{ opacity: visible ? 1 : 0, transform: visible ? "none" : "translateY(24px)" }}
         >
-          <h2 className="font-heading text-4xl font-bold tracking-tight text-[var(--ink)] sm:text-5xl">
-            Why we started Dr&apos;Bloom
-          </h2>
-          <p className="mt-8 max-w-xl leading-relaxed text-[var(--muted)]">
+          <h2 className={H2}>Why we started Dr&apos;Bloom</h2>
+          <p className="mt-6 max-w-xl text-sm leading-relaxed text-[var(--muted)] sm:text-base lg:mt-8">
             We saw firsthand how fragmented hospital care can be — patients repeating their
             history at every desk, waiting on paper records, and never knowing what their
             treatment would cost. That outdated way of running a hospital costs patients time,
             money, and peace of mind.
           </p>
-          <p className="mt-5 max-w-xl leading-relaxed text-[var(--muted)]">
+          <p className="mt-5 max-w-xl text-sm leading-relaxed text-[var(--muted)] sm:text-base">
             With backgrounds in healthcare and technology, we built Dr&apos;Bloom to change that.
             One connected system links our emergency team, specialists, laboratory, and
             pharmacy — reducing waiting times and keeping your care consistent from your first
             consultation to full recovery.
           </p>
-          <div className="mt-9">
+          <div className="mt-8">
             <Link
               href="/about"
               className="bg-[var(--primary-tint)] btn-hero btn-roll inline-flex items-center gap-2 rounded-full px-8 py-3 text-xs uppercase"
@@ -466,45 +452,42 @@ function AboutSection() {
           </div>
         </div>
 
-        {/* right: image card with tilted layers behind it */}
         <div
-          className="group relative mx-auto w-full max-w-[520px] transition-all duration-1000 ease-out"
+          className="group relative mx-auto w-full max-w-[520px] px-3 transition-all duration-1000 ease-out"
           style={{
             opacity: visible ? 1 : 0,
             transform: visible ? "none" : "translateY(40px)",
             transitionDelay: "200ms",
           }}
         >
-          {/* tilted containers at the back */}
-          <div
-            aria-hidden="true"
-            className={`absolute inset-0 rounded-[32px] bg-[var(--primary-tint)]/70 transition-transform duration-[1200ms] ease-out ${
-              visible ? "-translate-x-3.5 -translate-y-2 -rotate-[5deg] group-hover:-rotate-[7deg]" : ""
-            }`}
-          />
-          <div
-            aria-hidden="true"
-            className={`absolute inset-0 rounded-[32px] bg-[var(--primary)]/20 transition-transform duration-[1200ms] ease-out ${
-              visible ? "translate-x-3 translate-y-2.5 rotate-[4deg] group-hover:rotate-[6deg]" : ""
-            }`}
-          />
+          <div className="relative">
+            <div
+              aria-hidden="true"
+              className={`absolute inset-0 rounded-[32px] bg-[var(--primary-tint)]/70 transition-transform duration-[1200ms] ease-out ${
+                visible ? "-translate-x-2.5 -translate-y-2 -rotate-[5deg] group-hover:-rotate-[7deg]" : ""
+              }`}
+            />
+            <div
+              aria-hidden="true"
+              className={`absolute inset-0 rounded-[32px] bg-[var(--primary)]/20 transition-transform duration-[1200ms] ease-out ${
+                visible ? "translate-x-2.5 translate-y-2.5 rotate-[4deg] group-hover:rotate-[6deg]" : ""
+              }`}
+            />
 
-          {/* white card */}
-          <div className="relative rounded-[28px] border border-white bg-white p-4 shadow-2xl shadow-[var(--primary)]/15">
-            <div className="relative overflow-hidden rounded-2xl">
-              <img
-                src={aboutImage}
-                alt="Dr'Bloom Hospital"
-                className="aspect-[5/4] w-full object-cover transition-transform duration-[1400ms] ease-out group-hover:scale-105"
-              />
-            </div>
-
-            {/* title */}
-            <div className="mt-4 px-1 pb-1">
-              <div className="font-heading text-xl font-medium leading-snug text-[var(--ink)]">
-                One connected system
-                <br />
-                for your care
+            <div className="relative rounded-[28px] border border-white bg-white p-3 shadow-2xl shadow-[var(--primary)]/15 sm:p-4">
+              <div className="relative overflow-hidden rounded-2xl">
+                <img
+                  src={aboutImage}
+                  alt="Dr'Bloom Hospital"
+                  className="aspect-[5/4] w-full object-cover transition-transform duration-[1400ms] ease-out group-hover:scale-105"
+                />
+              </div>
+              <div className="mt-4 px-1 pb-1">
+                <div className="font-heading text-lg font-medium leading-snug text-[var(--ink)] sm:text-xl">
+                  One connected system
+                  <br />
+                  for your care
+                </div>
               </div>
             </div>
           </div>
@@ -514,7 +497,7 @@ function AboutSection() {
   );
 }
 
-/* ---------- what makes us special — auto slider like the image ---------- */
+/* ---------- what makes us special — auto slider, simplified layout ---------- */
 const specials = [
   {
     id: "01",
@@ -553,29 +536,38 @@ function SpecialSlider() {
   }, [paused]);
 
   const current = specials[index];
-  const next = specials[(index + 1) % specials.length];
 
   return (
-    <section className="py-24">
-      <div className="mx-auto max-w-6xl px-4">
-        {/* heading — like "Production" */}
-        <div className="mb-10 flex items-end justify-center gap-4">
-          <h2 className="font-heading text-4xl font-bold tracking-tight text-[var(--ink)] sm:text-5xl">
-            What makes us special
-          </h2>
+    <section className={SECTION}>
+      <div className="mx-auto max-w-6xl">
+        <div className="mb-8 flex flex-wrap items-end justify-center gap-4 lg:mb-10">
+          <h2 className={`${H2} text-center`}>What makes us special</h2>
           <span className="mb-1 hidden rounded-full border border-[var(--border)] bg-white px-3 py-1 text-xs text-[var(--muted)] sm:block">
             {current.id} / 0{specials.length}
           </span>
         </div>
 
-        {/* panel — like the image */}
         <div
-          className="relative h-[580px] overflow-hidden rounded-3xl bg-gradient-to-br from-[var(--primary-tint)]/25 via-[var(--primary-tint)]/15 to-white sm:h-[540px]"
+          className="grid gap-6 overflow-hidden rounded-3xl bg-gradient-to-br from-[var(--primary-tint)]/25 via-[var(--primary-tint)]/15 to-white p-4 sm:p-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-stretch lg:gap-12 lg:p-10"
           onMouseEnter={() => setPaused(true)}
           onMouseLeave={() => setPaused(false)}
         >
-          {/* left: index list + description */}
-          <div className="absolute left-6 top-10 z-20 sm:left-12">
+          {/* image — on top for mobile/tablet, right on desktop */}
+          <div className="relative order-1 aspect-[4/3] w-full overflow-hidden rounded-2xl shadow-2xl shadow-[var(--primary)]/20 lg:order-2 lg:aspect-auto lg:h-[460px]">
+            {specials.map((s, i) => (
+              <img
+                key={s.id}
+                src={s.img}
+                alt={s.title}
+                className={`absolute inset-0 h-full w-full object-cover transition-all duration-[1400ms] ease-out ${
+                  i === index ? "scale-100 opacity-100" : "scale-110 opacity-0"
+                }`}
+              />
+            ))}
+          </div>
+
+          {/* list + description */}
+          <div className="order-2 flex flex-col justify-between gap-8 lg:order-1 lg:py-2">
             <ul className="space-y-3">
               {specials.map((s, i) => (
                 <li key={s.id}>
@@ -591,7 +583,7 @@ function SpecialSlider() {
                       }`}
                     />
                     <span
-                      className={`font-heading text-xs sm:text-sm ${
+                      className={`font-heading text-sm sm:text-base ${
                         i === index ? "font-semibold text-[var(--primary)]" : "text-[var(--muted)]"
                       }`}
                     >
@@ -602,48 +594,13 @@ function SpecialSlider() {
               ))}
             </ul>
 
-            <p className="mt-40 hidden max-w-[240px] text-xs leading-relaxed text-[var(--muted)] sm:mt-48 sm:block">
-              {current.desc}
-            </p>
-          </div>
-
-          {/* center: big photo (crossfade + slow zoom) */}
-          <div className="absolute left-1/2 top-1/2 h-[420px] w-[62%] max-w-[560px] -translate-x-1/2 -translate-y-1/2 sm:w-[48%]">
-            {specials.map((s, i) => (
-              <img
-                key={s.id}
-                src={s.img}
-                alt={s.title}
-                className={`absolute inset-0 h-full w-full rounded-2xl object-cover shadow-2xl shadow-[var(--primary)]/20 transition-all duration-[1400ms] ease-out ${
-                  i === index ? "scale-100 opacity-100" : "scale-110 opacity-0"
-                }`}
-              />
-            ))}
-          </div>
-
-          {/* right: faded preview of the next slide */}
-          <div className="absolute right-6 top-1/2 hidden h-[300px] w-[220px] -translate-y-1/2 overflow-hidden rounded-2xl opacity-40 sm:block">
-            <img
-              key={next.id}
-              src={next.img}
-              alt=""
-              className="h-full w-full object-cover transition-all duration-[1400ms]"
-            />
-            <div className="absolute inset-0 bg-white/40" />
-          </div>
-
-          {/* navy info card — bottom right */}
-          <div className="absolute bottom-8 right-6 z-20 sm:right-12">
-            <div className="w-[240px] rounded-2xl bg-[var(--primary)] p-6 text-white shadow-xl shadow-[var(--primary)]/30">
-              <div className="font-heading text-sm font-semibold text-[var(--primary-tint)]">
-                {current.id}
-              </div>
-              <div className="font-heading mt-2 text-2xl font-bold leading-tight">
-                {current.title}
-              </div>
+            <div>
+              <p key={current.id} className="max-w-sm text-sm leading-relaxed text-[var(--muted)]">
+                {current.desc}
+              </p>
               <Link
                 href="/services"
-                className="mt-5 inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.25em] text-[var(--primary-tint)] transition-all hover:gap-3"
+                className="mt-5 inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.25em] text-[var(--primary)] transition-all hover:gap-3"
               >
                 More info
                 <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -652,42 +609,27 @@ function SpecialSlider() {
               </Link>
             </div>
           </div>
-
-          {/* mobile description */}
-          <p className="absolute bottom-8 left-6 right-6 text-xs leading-relaxed text-[var(--muted)] sm:hidden">
-            {current.desc}
-          </p>
         </div>
       </div>
     </section>
   );
 }
 
-/* ---------- emergency section — like the image ---------- */
+/* ---------- emergency ---------- */
 function EmergencySection() {
-  const ref = useRef<HTMLElement>(null);
-  const [visible, setVisible] = useState(false);
+  const { ref, visible } = useReveal(0.2);
 
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const obs = new IntersectionObserver(
-      ([e]) => { if (e.isIntersecting) { setVisible(true); obs.disconnect(); } },
-      { threshold: 0.2 }
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, []);
+  const cell = "sm:last:col-span-2 lg:last:col-span-1";
+  const card = `${cell} flex min-h-[220px] flex-col overflow-hidden rounded-3xl bg-[var(--primary-tint)]/25 p-6 transition-all duration-700 ease-out lg:min-h-[240px] lg:p-8`;
 
   return (
-    <section ref={ref} className="py-24">
-      <div className="mx-auto max-w-6xl px-4">
-        {/* heading with underlined word + subtitle */}
+    <section ref={ref} className={SECTION}>
+      <div className="mx-auto max-w-6xl">
         <div
           className="text-center transition-all duration-700 ease-out"
           style={{ opacity: visible ? 1 : 0, transform: visible ? "none" : "translateY(24px)" }}
         >
-          <h2 className="font-heading text-4xl font-bold tracking-tight text-[var(--ink)] sm:text-5xl">
+          <h2 className={H2}>
             When every second matters,{" "}
             <span className="relative inline-block text-[var(--primary)]">
               we&apos;re here
@@ -700,18 +642,8 @@ function EmergencySection() {
           </p>
         </div>
 
-        {/* 3 stat cards — with mouse-follow glow */}
-        <div className="mt-14 grid gap-6 md:grid-cols-3">
-          {/* card 1 — big number + icon */}
-          <div
-            onMouseMove={(e) => {
-              const r = e.currentTarget.getBoundingClientRect();
-              e.currentTarget.style.setProperty("--mx", `${e.clientX - r.left}px`);
-              e.currentTarget.style.setProperty("--my", `${e.clientY - r.top}px`);
-            }}
-            className="glow-card flex min-h-[240px] flex-col overflow-hidden rounded-3xl bg-[var(--primary-tint)]/25 p-8 transition-all duration-700 ease-out"
-            style={{ opacity: visible ? 1 : 0, transform: visible ? "none" : "translateY(40px)", transitionDelay: "200ms" }}
-          >
+        <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:mt-14 lg:grid-cols-3 lg:gap-6">
+          <div className={card} style={{ opacity: visible ? 1 : 0, transform: visible ? "none" : "translateY(40px)", transitionDelay: "200ms" }}>
             <p className="text-sm text-[var(--muted)]">Emergency Department</p>
             <p className="font-heading mt-3 text-4xl font-bold text-[var(--primary)]">24/7</p>
             <p className="mt-2 text-sm text-[var(--muted)]">Always open — walk-ins welcome</p>
@@ -722,18 +654,9 @@ function EmergencySection() {
             </div>
           </div>
 
-          {/* card 2 — hotline + icon */}
-          <div
-            onMouseMove={(e) => {
-              const r = e.currentTarget.getBoundingClientRect();
-              e.currentTarget.style.setProperty("--mx", `${e.clientX - r.left}px`);
-              e.currentTarget.style.setProperty("--my", `${e.clientY - r.top}px`);
-            }}
-            className="glow-card flex min-h-[240px] flex-col overflow-hidden rounded-3xl bg-[var(--primary-tint)]/25 p-8 transition-all duration-700 ease-out"
-            style={{ opacity: visible ? 1 : 0, transform: visible ? "none" : "translateY(40px)", transitionDelay: "350ms" }}
-          >
+          <div className={card} style={{ opacity: visible ? 1 : 0, transform: visible ? "none" : "translateY(40px)", transitionDelay: "350ms" }}>
             <p className="text-sm text-[var(--muted)]">Emergency Hotline</p>
-            <p className="font-heading mt-3 text-4xl font-bold text-[var(--primary)]">+93 700 000 000</p>
+            <p className="font-heading mt-3 break-words text-3xl font-bold text-[var(--primary)] sm:text-2xl xl:text-3xl">+93 700 000 000</p>
             <p className="mt-2 text-sm text-[var(--muted)]">Call anytime, day or night</p>
             <div className="mt-auto pt-8 text-[var(--muted)]">
               <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
@@ -742,16 +665,7 @@ function EmergencySection() {
             </div>
           </div>
 
-          {/* card 3 — slider like the image */}
-          <div
-            onMouseMove={(e) => {
-              const r = e.currentTarget.getBoundingClientRect();
-              e.currentTarget.style.setProperty("--mx", `${e.clientX - r.left}px`);
-              e.currentTarget.style.setProperty("--my", `${e.clientY - r.top}px`);
-            }}
-            className="glow-card flex min-h-[240px] flex-col overflow-hidden rounded-3xl bg-[var(--primary-tint)]/25 p-8 transition-all duration-700 ease-out"
-            style={{ opacity: visible ? 1 : 0, transform: visible ? "none" : "translateY(40px)", transitionDelay: "500ms" }}
-          >
+          <div className={card} style={{ opacity: visible ? 1 : 0, transform: visible ? "none" : "translateY(40px)", transitionDelay: "500ms" }}>
             <p className="text-sm text-[var(--muted)]">Critical Care Response</p>
             <p className="font-heading mt-3 text-4xl font-bold text-[var(--primary)]">Immediate</p>
             <p className="mt-2 text-sm text-[var(--muted)]">Triage and rapid assessment</p>
@@ -767,14 +681,13 @@ function EmergencySection() {
           </div>
         </div>
 
-        {/* buttons — dark, like the image */}
         <div
-          className="mt-12 flex flex-wrap justify-center gap-4 transition-all duration-700 ease-out"
+          className="mt-10 flex flex-wrap justify-center gap-4 transition-all duration-700 ease-out lg:mt-12"
           style={{ opacity: visible ? 1 : 0, transform: visible ? "none" : "translateY(24px)", transitionDelay: "650ms" }}
         >
           <Link
             href="/contact"
-            className="btn-roll inline-flex items-center gap-2 rounded-full bg-[var(--primary)] px-7 py-3 text-xs  uppercase tracking-[0.15em] text-white  hover:bg-[var(--primary)]/85"
+            className="btn-roll inline-flex items-center gap-2 rounded-full bg-[var(--primary)] px-7 py-3 text-xs uppercase tracking-[0.15em] text-white hover:bg-[var(--primary)]/85"
           >
             <span className="roll">
               <span className="r1">Emergency Information</span>
@@ -797,51 +710,43 @@ const faqs = [
   { q: "How can I find the right doctor?", a: "You can browse our doctors by specialty, department, and area of expertise to find the appropriate specialist for your needs." },
 ];
 
-/* ---------- hero — photo + animated corner blocks, text inside the big block ---------- */
-/* Put your photo (the one WITHOUT shapes) in /public and set the path here */
-const HERO_PHOTO = "/hero-photo.webp";
-
+/* ---------- hero — photo + animated corner block, text inside ---------- */
 function Hero() {
   return (
-    <section className="hero-stage relative min-h-[max(100vh,720px)] overflow-hidden">
+    <section className="hero-stage relative min-h-[max(100svh,640px)] overflow-hidden">
       <style>{`
         .hero-stage {
           container-type: inline-size;
           --blue: #b1c0ec;
-          --r: 3.5cqw;
-          /* final size of the big (top-left) block — mobile first */
-          --tl-w: 92%;
-          --tl-h: 78%;
-          /* small (bottom-right) block */
-          --br-w: 44%;
-          --br-h: 14%;
+          --r: clamp(18px, 3.5cqw, 44px);
+          /* width of the block: mobile leaves a 24px gap on the right */
+          --tl-w: calc(100% - 24px);
         }
-        @media (min-width: 1024px) {
-          .hero-stage { --tl-w: 52%; --tl-h: 68%; --br-w: 43.6%; --br-h: 22%; }
-        }
+        @media (min-width: 640px)  { .hero-stage { --tl-w: 82%; } }
+        @media (min-width: 768px)  { .hero-stage { --tl-w: 70%; } }
+        @media (min-width: 1024px) { .hero-stage { --tl-w: 56%; } }
+        @media (min-width: 1280px) { .hero-stage { --tl-w: 52%; } }
 
-        .hero-block { position: absolute; background: var(--blue); overflow: hidden; }
-
-        .hero-tl {
+        .hero-block {
+          position: absolute;
           top: 0; left: 0;
-          width: var(--tl-w); height: var(--tl-h);
+          width: var(--tl-w);
+          background: var(--blue);
           border-radius: 0 var(--r) var(--r) var(--r);
+          overflow: hidden;
+          /* height follows the content, so text never overflows on small screens */
           animation: heroGrow 1.2s cubic-bezier(0.16, 1, 0.3, 1) both;
         }
-        .hero-br {
-          right: 0; bottom: 0;
-          width: var(--br-w); height: var(--br-h);
-          border-radius: var(--r) var(--r) 0 var(--r);
-          animation: heroGrow 1.2s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
-        }
+        @media (min-width: 1024px) { .hero-block { min-height: 68%; } }
 
-        /* grow out of the corner to the final size set above */
+        /* grows out of the top-left corner */
         @keyframes heroGrow {
-          from { width: 0; height: 0; }
+          from { clip-path: inset(0 100% 100% 0); }
+          to   { clip-path: inset(0 0 0 0); }
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .hero-tl, .hero-br { animation: none; }
+          .hero-block { animation: none; }
         }
       `}</style>
 
@@ -851,25 +756,22 @@ function Hero() {
         alt=""
         fill
         priority
-        className="absolute inset-0 h-full w-full select-none object-cover"
+        sizes="100vw"
+        className="absolute inset-0 h-full w-full select-none object-cover object-center"
       />
 
-      {/* small block, bottom-right */}
-      <div className="hero-block hero-br" aria-hidden="true" />
-
-      {/* big block, top-left — holds the text and button */}
-      <div className="hero-block hero-tl">
-        <div className="px-6 pt-14 sm:px-12 sm:pt-20 lg:pt-24">
-          {/* text and button are unchanged; only their delays are later so they appear after the block grows */}
+      {/* block, top-left — holds the text and button */}
+      <div className="hero-block">
+        <div className="px-6 pb-10 pt-12 sm:px-10 sm:pb-14 sm:pt-16 lg:px-12 lg:pb-20 lg:pt-24">
           <h1
-            className="hero-anim font-heading max-w-2xl text-5xl font-bold leading-[1.05] tracking-tight text-[var(--primary)] sm:text-6xl lg:text-7xl"
+            className="hero-anim font-heading max-w-2xl text-[2.5rem] font-bold leading-[1.05] tracking-tight text-[var(--primary)] sm:text-5xl lg:text-6xl xl:text-7xl"
             style={{ animationDelay: "0.8s" }}
           >
             Advanced healthcare.
           </h1>
 
           <p
-            className="hero-anim mt-8 max-w-lg text-sm leading-relaxed text-[var(--muted)]"
+            className="hero-anim mt-6 max-w-lg text-sm leading-relaxed text-[var(--muted)] sm:mt-8 sm:text-base lg:text-sm"
             style={{ animationDelay: "1s" }}
           >
             At Dr&apos;Bloom, we combine advanced medical technology, experienced specialists,
@@ -878,12 +780,12 @@ function Hero() {
           </p>
 
           <div
-            className="hero-anim mt-9 flex flex-wrap items-center gap-5"
+            className="hero-anim mt-7 flex flex-wrap items-center gap-5 sm:mt-9"
             style={{ animationDelay: "1.2s" }}
           >
             <Link
               href="/services"
-              className="bg-[var(--primary)] text-[var(--primary-tint)] btn-hero btn-roll inline-flex items-center gap-2 rounded-full px-8 py-3 text-xs uppercase"
+              className="bg-[var(--primary)] text-[var(--primary-tint)] btn-hero btn-roll inline-flex items-center gap-2 rounded-full px-7 py-3 text-xs uppercase sm:px-8"
             >
               <span className="roll">
                 <span className="r1">Explore Our Services</span>
@@ -907,40 +809,25 @@ export default function HomePage() {
 
   return (
     <div>
-      {/* Hero — photo + animated corner blocks, text inside the big block */}
       <Hero />
-
-      {/* Stats — major-hospital numbers */}
       <StatsStrip info={info} />
-
-      {/* Our departments — 3 cards from the database */}
       <DepartmentsSection />
-
-      {/* Our specialist doctors — 4 cards from the database */}
       <DoctorsSection />
-
-      {/* About — our story + our work chart */}
       <AboutSection />
-
-      {/* What makes us special — auto slider */}
       <SpecialSlider />
-
-      {/* Emergency — like the image */}
       <EmergencySection />
 
-      {/* FAQ — minimal border list */}
-      <section className="py-24">
-        <div className="mx-auto max-w-3xl px-4">
-          <h2 className="font-heading text-center text-4xl font-bold tracking-tight text-[var(--ink)] sm:text-5xl">
-            Frequently asked questions
-          </h2>
+      {/* FAQ */}
+      <section className={SECTION}>
+        <div className="mx-auto max-w-3xl">
+          <h2 className={`${H2} text-center`}>Frequently asked questions</h2>
 
-          <div className="mt-14">
+          <div className="mt-10 lg:mt-14">
             {faqs.map((f, i) => (
               <div key={i} className="border-t border-[var(--border)] last:border-b">
                 <button
                   onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                  className="flex w-full items-center justify-between gap-2 py-3 text-left"
+                  className="flex w-full items-center justify-between gap-3 py-3.5 text-left"
                 >
                   <span className="text-[15px] text-[var(--muted)] transition-colors hover:text-[var(--ink)]">
                     {f.q}
@@ -962,7 +849,7 @@ export default function HomePage() {
                   }`}
                 >
                   <div className="overflow-hidden">
-                    <p className="pb-7 pr-14 text-sm leading-relaxed text-[var(--muted)]">
+                    <p className="pb-6 pr-8 text-sm leading-relaxed text-[var(--muted)] sm:pr-14">
                       {f.a}
                     </p>
                   </div>
@@ -972,7 +859,6 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-
     </div>
   );
 }

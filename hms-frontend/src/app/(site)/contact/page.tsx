@@ -5,6 +5,14 @@ import { api } from "@/lib/api";
 
 type Info = { hospital_name: string; address: string; phone: string; email: string; working_hours: string };
 
+/* Shown when the API has no value for a field (same details as the site footer) */
+const FALLBACK = {
+  address: "Dr-Bloom Hospital, Kabul, Afghanistan",
+  phone: "+93 700 000 000",
+  email: "info@drbloom.test",
+  working_hours: "24/7 emergency",
+};
+
 /* SVG icons — same stroke style as the services/about icons */
 const iconProps = {
   className: "h-6 w-6",
@@ -16,28 +24,37 @@ const iconProps = {
   viewBox: "0 0 24 24",
 } as const;
 
-const contactItems = (info: Info | null) => [
-  {
-    icon: <svg {...iconProps}><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg>,
-    label: "Address",
-    value: info?.address || "—",
-  },
-  {
-    icon: <svg {...iconProps}><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 2 .7 2.9a2 2 0 0 1-.5 2.1L8 10a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.5c.9.3 1.9.6 2.9.7a2 2 0 0 1 1.7 2z" /></svg>,
-    label: "Phone",
-    value: info?.phone || "—",
-  },
-  {
-    icon: <svg {...iconProps}><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>,
-    label: "Email",
-    value: info?.email || "—",
-  },
-  {
-    icon: <svg {...iconProps}><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>,
-    label: "Working hours",
-    value: info?.working_hours || "24/7 emergency",
-  },
-];
+const contactItems = (info: Info | null) => {
+  const address = info?.address || FALLBACK.address;
+  const phone = info?.phone || FALLBACK.phone;
+  const email = info?.email || FALLBACK.email;
+  const hours = info?.working_hours || FALLBACK.working_hours;
+
+  return [
+    {
+      icon: <svg {...iconProps}><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg>,
+      label: "Address",
+      value: address,
+    },
+    {
+      icon: <svg {...iconProps}><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 2 .7 2.9a2 2 0 0 1-.5 2.1L8 10a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.5c.9.3 1.9.6 2.9.7a2 2 0 0 1 1.7 2z" /></svg>,
+      label: "Phone",
+      value: phone,
+      href: `tel:${phone.replace(/[^+\d]/g, "")}`,
+    },
+    {
+      icon: <svg {...iconProps}><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>,
+      label: "Email",
+      value: email,
+      href: `mailto:${email}`,
+    },
+    {
+      icon: <svg {...iconProps}><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>,
+      label: "Working hours",
+      value: hours,
+    },
+  ];
+};
 
 export default function ContactPage() {
   const [info, setInfo] = useState<Info | null>(null);
@@ -99,9 +116,15 @@ export default function ContactPage() {
                 style={{ opacity: visible ? 1 : 0, transform: visible ? "none" : "translateY(32px)", transitionDelay: `${200 + i * 120}ms` }}
               >
                 <span className="shrink-0 text-[var(--muted)]">{c.icon}</span>
-                <div>
+                <div className="min-w-0">
                   <div className="font-heading text-sm font-semibold text-[var(--ink)]">{c.label}</div>
-                  <div className="mt-0.5 text-sm text-[var(--muted)]">{c.value}</div>
+                  {c.href ? (
+                    <a href={c.href} className="mt-0.5 block break-words text-sm text-[var(--muted)] transition-colors hover:text-[var(--primary)]">
+                      {c.value}
+                    </a>
+                  ) : (
+                    <div className="mt-0.5 break-words text-sm text-[var(--muted)]">{c.value}</div>
+                  )}
                 </div>
               </div>
             ))}
@@ -114,7 +137,7 @@ export default function ContactPage() {
               <svg {...iconProps} className="h-6 w-6 shrink-0"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M12 8v8M8 12h8"/></svg>
               <p>
                 <span className="font-semibold">Medical emergency?</span> Come straight to the ER or
-                call {info?.phone || "our emergency line"} — no appointment needed.
+                call {info?.phone || FALLBACK.phone} — no appointment needed.
               </p>
             </div>
           </div>
