@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { iconFor, slugify, useDepartments } from "@/lib/departments";
@@ -105,10 +106,10 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
   });
 
   return (
-    <div className="min-h-screen text-[var(--ink)]">
+    <div className="min-h-screen text-(--ink)">
       {/* Navbar */}
       <header
-        className="sticky top-0 z-50 border-b border-[var(--border)] bg-white/90 backdrop-blur"
+        className="sticky top-0 z-50  `border-[var(--border)]` bg-white/90 backdrop-blur"
       >
         <div className="relative mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
           {/* logo */}
@@ -155,7 +156,7 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
                     aria-expanded={dd}
                     aria-controls="dept-menu"
                     onClick={() => setDd((o) => !o)}
-                    className="-ml-0.5 flex h-8 w-7 items-center justify-center rounded-full text-[var(--muted)] hover:text-[var(--ink)]"
+                    className="-ml-0.5 flex h-8 w-7 items-center justify-center rounded-full `text-[var(--muted)]` `hover:text-[var(--ink)]`"
                   >
                     <Chevron className={`transition-transform duration-500 ${dd ? "rotate-180" : ""}`} />
                   </button>
@@ -168,7 +169,7 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
           <div className="hidden items-center gap-2 lg:flex">
             <Link
               href="/login"
-              className="btn-hero btn-roll border border-[var(--primary-tint)] text-[var(--muted)] items-center gap-2 rounded-full px-5 py-2 text-xs uppercase"
+              className="btn-hero btn-roll border border-(--primary-tint) text-(--muted) items-center gap-2 rounded-full px-5 py-2 text-xs uppercase"
             >
               <span className="roll">
                 <span className="r1">Sign in</span>
@@ -469,11 +470,13 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
               </h2>
               <div className="mt-6 flex -space-x-3">
                 {footerDoctors.map((d) => (
-                  <img
+                  <Image
                     key={d.name}
                     src={d.img}
                     alt={d.name}
                     title={d.name}
+                    width={48}
+                    height={48}
                     className="h-12 w-12 rounded-full border-2 border-white/80 object-cover shadow-md"
                   />
                 ))}

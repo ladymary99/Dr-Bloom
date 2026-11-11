@@ -4,6 +4,7 @@
    Save as: app/department/[slug]/page.tsx */
 
 import Link from "next/link";
+import Image from "next/image";
 import { useParams } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { api } from "@/lib/api";
@@ -107,11 +108,13 @@ function DeptCarousel({ slides }: { slides: Slide[] }) {
             className="absolute inset-0 transition-opacity duration-[1200ms] ease-out"
             style={{ opacity: active ? 1 : 0 }}
           >
-            <img
+            <Image
               src={s.img}
               alt=""
               draggable={false}
               onError={(e) => { e.currentTarget.style.display = "none"; }}
+              fill
+              sizes="(max-width: 768px) 100vw, 80vw"
               className={`h-full w-full object-cover transition-transform duration-[6000ms] ease-out ${
                 active ? "scale-105" : "scale-100"
               }`}
@@ -174,11 +177,14 @@ function DoctorTile({ d }: { d: Doctor }) {
       className="group relative block h-[320px] overflow-hidden rounded-3xl border border-[var(--border)] bg-gradient-to-b from-white to-[var(--primary-tint)]/20 shadow-sm transition-all duration-500 hover:-translate-y-1 hover:border-[var(--primary-tint)] hover:shadow-xl hover:shadow-[var(--primary-tint)]/30"
     >
       {photo ? (
-        <img
+        <Image
           src={photo}
           alt={d.name}
           draggable={false}
           onError={() => setFailed(true)}
+          fill
+          unoptimized
+          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
           className="absolute inset-0 h-full w-full object-cover object-top transition-transform duration-[1200ms] ease-out group-hover:scale-105"
         />
       ) : (
