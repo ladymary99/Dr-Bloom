@@ -273,7 +273,7 @@ const fallbackDoctors: Doctor[] = [
   { name: "Dr. Daniel Wilson", specialization: "Orthopedic Surgeon", department: "Orthopedics" },
 ];
 
-const doctorPhotos = ["/doc1.webp", "/doc2.webp", "/doc3.webp", "/doc4.webp"];
+const doctorPhotos = ["/dc1.png", "/dc5.webp", "/dc3.webp", "/dc4.png"];
 
 const demoPhotos: Record<string, string> = Object.fromEntries(
   fallbackDoctors.map((d, i) => [norm(d.name), doctorPhotos[i]])
@@ -521,7 +521,7 @@ const specials = [
     id: "04",
     title: "Connected specialists",
     desc: "Multidisciplinary teams share one live record across departments, so every specialist sees the full picture of your health.",
-    img: "/7.webp",
+    img: "/10.webp",
   },
 ];
 

@@ -31,9 +31,9 @@ const footerLinks = [
 
 /* doctor photos for the footer avatars — swap these paths for your real photos */
 const footerDoctors = [
-  { img: "/doc1.webp", name: "Dr. Sarah Khan" },
-  { img: "/doc2.webp", name: "Dr. Karim Nazari" },
-  { img: "/doc3.webp", name: "Dr. Maya Anderson" },
+  { img: "/dc1.png", name: "Dr. Sarah Khan" },
+  { img: "/dc4.png", name: "Dr. Karim Nazari" },
+  { img: "/dc5.webp", name: "Dr. Maya Anderson" },
 ];
 
 export default function SiteLayout({ children }: { children: React.ReactNode }) {

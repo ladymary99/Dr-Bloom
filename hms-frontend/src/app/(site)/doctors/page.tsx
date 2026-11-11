@@ -27,7 +27,7 @@ const fallbackDoctors: Doctor[] = [
   { name: "Dr. Daniel Wilson", specialization: "Orthopedic Surgeon", department: "Orthopedics" },
 ];
 
-const doctorPhotos = ["/doc1.webp", "/doc2.webp", "/doc3.webp", "/doc4.webp"];
+const doctorPhotos = ["/dc1.png", "/dc5.webp", "/dc3.webp", "/dc4.png"];
 
 const norm = (s: string) => s.toLowerCase().trim();
 const deptName = (d: Doctor) => d.department?.trim() || "General";
